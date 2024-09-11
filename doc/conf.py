@@ -21,7 +21,7 @@ Sphinx configuration file.
 
 from sphinx_readable_theme import get_html_theme_path
 
-from surrealdb-migrations import __version__ as version
+from surrealdb_migrations import __version__ as version
 
 
 ########################
@@ -51,7 +51,7 @@ master_doc = 'index'
 # Project Information  #
 ########################
 
-project = 'Surrealdb-Migrations'
+project = 'Surrealdb Migrations'
 author = 'Hewlett Packard Enterprise Development LP'
 copyright = '2024, ' + author
 release = version
@@ -92,7 +92,7 @@ def setup(app):
 
 # autoapi configuration
 autoapi_modules = {
-    'surrealdb-migrations': None,
+    'surrealdb_migrations': None,
 }
 
 # Plantweb configuration

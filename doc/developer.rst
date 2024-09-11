@@ -6,7 +6,7 @@
 Developer Guide
 ===============
 
-This guide describes how to get started developing for Surrealdb-Migrations.
+This guide describes how to get started developing for Surrealdb Migrations.
 
 .. contents:: Table of Contents
    :local:
@@ -47,9 +47,9 @@ Building Package
 
 Output will be available at ``dist/``.
 
-- Source distribution: ``surrealdb-migrations-<version>.tar.gz``.
-- Python wheel: ``surrealdb-migrations-<version>-py3-none-any.whl``
-- Binary wheel: ``surrealdb-migrations-<version>-cp36-cp36m-linux_x86_64.whl``
+- Source distribution: ``surrealdb_migrations-<version>.tar.gz``.
+- Python wheel: ``surrealdb_migrations-<version>-py3-none-any.whl``
+- Binary wheel: ``surrealdb_migrations-<version>-cp36-cp36m-linux_x86_64.whl``
 
 .. note::
 

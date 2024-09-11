@@ -7,7 +7,7 @@ build/*
 *.egg-info
 
 # Sphinx
-doc/surrealdb-migrations/*
+doc/surrealdb_migrations/*
 
 # Tox
 .tox/*

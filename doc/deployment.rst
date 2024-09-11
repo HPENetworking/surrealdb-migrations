@@ -6,7 +6,7 @@
 Deployment Guide
 ================
 
-This guide describes how to deploy and administer Surrealdb-Migrations.
+This guide describes how to deploy and administer Surrealdb Migrations.
 
 .. contents:: Table of Contents
    :local:

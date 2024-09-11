@@ -16,37 +16,9 @@
 
 
 """
-Executable module entry point.
-
-Install this package, then execute the following to run this module::
-
-    python3 -m surrealdb-migrations
+surrealdb_migrations module entry point.
 """
 
-from logging import getLogger
-
-
-log = getLogger(__name__)
-
-
-def main():
-    from setproctitle import setproctitle
-    setproctitle('surrealdb-migrations')
-
-    # Parse arguments
-    from .args import InvalidArguments, parse_args
-    try:
-        args = parse_args()
-    except InvalidArguments:
-        return 1
-
-    # FIXME: Implement logic.
-    print(args)
-    return 0
-
-
-if __name__ == '__main__':
-    exit(main())
-
-
-__all__ = []
+__author__ = 'Hewlett Packard Enterprise Development LP'
+__email__ = 'sdk_tools_frameworks@groups.ext.hpe.com'
+__version__ = '0.1.0'

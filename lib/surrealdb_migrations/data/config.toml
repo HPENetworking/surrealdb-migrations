@@ -1,0 +1,8 @@
+[database]
+url = "ws://localhost:8000/database/namespace"
+user = "user"
+password_env = "SURREALDB_PASSWORD"
+
+[migrations]
+directory = "migrations"
+metastore = "_migrations"

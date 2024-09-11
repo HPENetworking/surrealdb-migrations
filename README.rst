@@ -1,5 +1,5 @@
 ====================
-Surrealdb-Migrations
+Surrealdb Migrations
 ====================
 
 SurrealDB migrations tool
@@ -8,7 +8,7 @@ SurrealDB migrations tool
 Documentation
 =============
 
-    https://github.hpe.com/hpe-networking/surrealdb-migrations
+    https://github.hpe.com/hpe-networking/surrealdb_migrations
 
 
 Install
@@ -16,7 +16,7 @@ Install
 
 .. code-block:: sh
 
-    pip3 install surrealdb-migrations
+    pip3 install surrealdb_migrations
 
 
 Changelog

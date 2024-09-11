@@ -4,10 +4,10 @@
    user
    deployment
    developer
-   surrealdb-migrations/surrealdb-migrations
+   surrealdb_migrations/surrealdb_migrations
 
 ====================
-Surrealdb-Migrations
+Surrealdb Migrations
 ====================
 
 SurrealDB migrations tool
@@ -38,8 +38,8 @@ Development
    :maxdepth: 2
 
    developer
-   API Reference <surrealdb-migrations/surrealdb-migrations>
-   GitHub Repository <https://github.hpe.com/hpe-networking/surrealdb-migrations>
+   API Reference <surrealdb_migrations/surrealdb_migrations>
+   GitHub Repository <https://github.hpe.com/hpe-networking/surrealdb_migrations>
 
 
 License

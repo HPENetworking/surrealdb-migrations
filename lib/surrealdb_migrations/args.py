@@ -19,6 +19,7 @@
 Argument management module.
 """
 
+from pathlib import Path
 from argparse import ArgumentParser
 from logging import (
     ERROR, WARNING, DEBUG, INFO,
@@ -92,7 +93,14 @@ def validate_args(args):
 
     log.debug('Arguments:\n{}'.format(args))
 
-    # FIXME: Implement. Raise InvalidArguments when something fails.
+    # Check configuration file exists
+    if args.conf is not None:
+        args.conf = Path(args.conf).resolve()
+
+        if not args.conf.is_file():
+            raise InvalidArguments(
+                'No such file {}'.format(args.conf)
+            )
 
     return args
 
@@ -135,6 +143,11 @@ def parse_args(argv=None):
         action='store_false',
         dest='colorize',
         help='Do not colorize the log output'
+    )
+
+    parser.add_argument(
+        '-c', '--conf',
+        help='Path to configuration file',
     )
 
     # Parse and validate arguments

@@ -6,7 +6,7 @@
 User Guide
 ==========
 
-This guide describes how to install and use Surrealdb-Migrations.
+This guide describes how to install and use Surrealdb Migrations.
 
 .. contents:: Table of Contents
    :local:

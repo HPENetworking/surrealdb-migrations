@@ -113,4 +113,4 @@ ENV PYTHONPATH /usr/local/lib/python3.8/site-packages
 
 
 # Run package entrypoint
-CMD python3 -m surrealdb-migrations
+CMD python3 -m surrealdb_migrations

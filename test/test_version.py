@@ -21,7 +21,7 @@ Tests to check valid package version.
 
 from packaging import version
 
-from surrealdb-migrations import __version__
+from surrealdb_migrations import __version__
 
 
 def test_version():

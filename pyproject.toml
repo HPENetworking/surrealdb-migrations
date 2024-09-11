@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.package-data]
-"surrealdb-migrations.data" = ["**/*"]
+"surrealdb_migrations.data" = ["**/*"]
 
 [tool.setuptools.packages.find]
 where = ["lib"]
 
 [project]
-name = "surrealdb-migrations"
+name = "surrealdb_migrations"
 version = "0.1.0"
 authors = [{name = "Hewlett Packard Enterprise Development LP", email = "sdk_tools_frameworks@groups.ext.hpe.com"}]
 description = "SurrealDB migrations tool"
@@ -28,7 +28,10 @@ classifiers = [
 dependencies = [
     "setproctitle",
     "colorlog",
+    "tomli",
+    "surrealdb",
+    "objns",
 ]
 
 [project.scripts]
-surrealdb-migrations = "surrealdb-migrations.__main__:main"
+surrealdb_migrations = "surrealdb_migrations.__main__:main"
