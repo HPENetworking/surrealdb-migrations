@@ -1,0 +1,22 @@
+# Bytecode
+**/__pycache__
+
+# Packages
+dist
+build
+**/*.egg-info
+
+# Non-code
+deployment
+doc
+test
+tox.ini
+
+# Tox
+.tox
+.cache
+.coverage
+.pytest_cache
+
+# Misc
+*~

@@ -1,0 +1,19 @@
+# Bytecode
+__pycache__
+
+# Packages
+dist/*
+build/*
+*.egg-info
+
+# Sphinx
+doc/surrealdb-migrations/*
+
+# Tox
+.tox/*
+.cache/*
+.coverage
+.pytest_cache
+
+# Misc
+*~
