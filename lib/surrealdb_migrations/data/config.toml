@@ -1,6 +1,6 @@
 [database]
 url = "ws://localhost:8000/database/namespace"
-user = "user"
+username = "user"
 password_env = "SURREALDB_PASSWORD"
 
 [migrations]
