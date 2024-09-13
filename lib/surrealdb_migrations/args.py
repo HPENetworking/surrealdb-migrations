@@ -184,6 +184,8 @@ def parse_args(argv=None):
         help='Rollback database down to the given datetime (ISO8601)',
     )
 
+    subcommands.add_parser('list')
+
     # Parse and validate arguments
     args = parser.parse_args(argv)
 

@@ -56,6 +56,8 @@ def main():
         mgr.do_migrate(to_datetime=args.datetime)
     elif args.command == 'rollback':
         mgr.do_rollback(to_datetime=args.datetime)
+    elif args.command == 'list':
+        mgr.do_list()
     else:
         raise RuntimeError(f'Unknown command {args.command}')
 

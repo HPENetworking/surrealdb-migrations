@@ -92,6 +92,13 @@ class MigrationsManager:
         filename.write_text(MIGRATION_TPL, encoding='utf-8')
         log.info(f'Migration file {filename} created!')
 
+    def _list_migrations(self):
+        directory = Path(self.config.migrations.directory)
+        return sorted(directory.glob('*.py'))
+
+    def _insert_migration(self, migration):
+        pass
+
     def do_migrate(self, to_datetime=None):
         """
         Execute all relevant migrations.
@@ -99,12 +106,18 @@ class MigrationsManager:
         log.info(f'Executing migration up to {to_datetime.isoformat()} ...')
         self._connect()
 
+    def _delete_migration(self, migration):
+        pass
+
     def do_rollback(self, to_datetime=None):
         """
         Rollback all relevant migrations.
         """
         log.info(f'Executing rollback down to {to_datetime.isoformat()} ...')
         self._connect()
+
+    def do_list(self):
+        log.info(self._list_migrations())
 
 
 __all__ = [
