@@ -21,6 +21,7 @@ Argument management module.
 
 from pathlib import Path
 from argparse import ArgumentParser
+from datetime import datetime, timezone
 from logging import (
     ERROR, WARNING, DEBUG, INFO,
     StreamHandler, getLogger, Formatter, basicConfig,
@@ -102,6 +103,10 @@ def validate_args(args):
                 'No such file {}'.format(args.conf)
             )
 
+    # Check input datetime
+    if args.command in ['migrate', 'rollback']:
+        args.datetime = datetime.fromisoformat(args.datetime)
+
     return args
 
 
@@ -148,6 +153,35 @@ def parse_args(argv=None):
     parser.add_argument(
         '-c', '--conf',
         help='Path to configuration file',
+    )
+
+    # Subcommands:
+    # surrealdb_migrations -c config.toml create
+    # surrealdb_migrations -c config.toml migrate
+    # surrealdb_migrations -c config.toml rollback
+    subcommands = parser.add_subparsers(
+        required=True,
+        dest='command',
+    )
+
+    create = subcommands.add_parser('create')
+    create.add_argument(
+        'name',
+        help='Name of the migration file',
+    )
+
+    migrate = subcommands.add_parser('migrate')
+    migrate.add_argument(
+        '--datetime',
+        default=datetime.now(tz=timezone.utc),
+        help='Migrate database up to the given datetime (ISO8601)',
+    )
+
+    rollback = subcommands.add_parser('rollback')
+    rollback.add_argument(
+        '--datetime',
+        default=datetime.now(tz=timezone.utc),
+        help='Rollback database down to the given datetime (ISO8601)',
     )
 
     # Parse and validate arguments

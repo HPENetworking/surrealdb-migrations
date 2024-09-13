@@ -25,6 +25,8 @@ Install this package, then execute the following to run this module::
 
 from logging import getLogger
 
+from .migrations import MigrationsManager
+
 
 log = getLogger(__name__)
 
@@ -44,8 +46,19 @@ def main():
     from .config import load_config
     config = load_config(args.conf)
 
-    # FIXME: Do something
-    print(dict(config))
+    mgr = MigrationsManager(config)
+    log.debug(f'Configuration:\n{config}')
+    log.debug(f'Arguments:\n{args}')
+
+    if args.command == 'create':
+        mgr.do_create(args.name)
+    elif args.command == 'migrate':
+        mgr.do_migrate(to_datetime=args.datetime)
+    elif args.command == 'rollback':
+        mgr.do_rollback(to_datetime=args.datetime)
+    else:
+        raise RuntimeError(f'Unknown command {args.command}')
+
     return 0
 
 

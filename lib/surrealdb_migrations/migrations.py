@@ -20,11 +20,15 @@ Module to manage (create, upgrade, downgrade) migrations.
 """
 
 from os import environ
+from logging import getLogger
 
-from surrealdb import SurrealDB
+from surrealdb import Surreal
 
 
-class MigrationManager:
+log = getLogger(__name__)
+
+
+class MigrationsManager:
     """
     FIXME: Document.
 
@@ -44,28 +48,31 @@ class MigrationManager:
                 f'{password_env} is not set'
             )
 
-        self.db = SurrealDB(self.config.database.url)
+        self.db = Surreal(self.config.database.url)
         self.db.signin({
             'username': self.config.database.username,
             'password': password,
         })
 
-    def do_create(self):
+    def do_create(self, name):
         """
         Create a new migration file.
         """
+        print(f'Got CREATE {name}')
 
     def do_migrate(self, to_datetime=None):
         """
         Execute all relevant migrations.
         """
+        print(f'Got MIGRATE {to_datetime}')
 
     def do_rollback(self, to_datetime=None):
         """
         Rollback all relevant migrations.
         """
+        print(f'Got ROLLBACK {to_datetime}')
 
 
 __all__ = [
-    'MigrationManager',
+    'MigrationsManager',
 ]
