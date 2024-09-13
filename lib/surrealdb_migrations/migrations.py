@@ -20,12 +20,28 @@ Module to manage (create, upgrade, downgrade) migrations.
 """
 
 from os import environ
+from pathlib import Path
 from logging import getLogger
+from datetime import datetime, timezone
 
 from surrealdb import Surreal
 
 
 log = getLogger(__name__)
+
+
+MIGRATION_TPL = """\
+from surrealdb_migrations.base import BaseMigration
+
+
+class Migration(BaseMigration):
+
+    def upgrade(self):
+        pass
+
+    def downgrade(self):
+        pass
+"""
 
 
 class MigrationsManager:
@@ -37,6 +53,7 @@ class MigrationsManager:
 
     def __init__(self, config):
         self.config = config
+        self.db = None
 
     def _connect(self):
 
@@ -48,29 +65,46 @@ class MigrationsManager:
                 f'{password_env} is not set'
             )
 
+        log.info(f'Connecting SurrealDB at {self.config.database.url} ...')
         self.db = Surreal(self.config.database.url)
         self.db.signin({
             'username': self.config.database.username,
             'password': password,
         })
+        log.info(f'Successfully connected and signed in!')
 
     def do_create(self, name):
         """
         Create a new migration file.
         """
-        print(f'Got CREATE {name}')
+        directory = Path(self.config.migrations.directory)
+        directory.mkdir(parents=True, exist_ok=True)
+
+        now = datetime.now(tz=timezone.utc)
+
+        filename = directory / '{}_{}.py'.format(
+            now.isoformat(),
+            name.lower().replace(' ', '_').replace('-', '_'),
+
+        )
+        log.info(f'Creating migration file {filename} ...')
+
+        filename.write_text(MIGRATION_TPL, encoding='utf-8')
+        log.info(f'Migration file {filename} created!')
 
     def do_migrate(self, to_datetime=None):
         """
         Execute all relevant migrations.
         """
-        print(f'Got MIGRATE {to_datetime}')
+        log.info(f'Executing migration up to {to_datetime.isoformat()} ...')
+        self._connect()
 
     def do_rollback(self, to_datetime=None):
         """
         Rollback all relevant migrations.
         """
-        print(f'Got ROLLBACK {to_datetime}')
+        log.info(f'Executing rollback down to {to_datetime.isoformat()} ...')
+        self._connect()
 
 
 __all__ = [

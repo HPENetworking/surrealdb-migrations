@@ -24,7 +24,7 @@ from os import environ
 from surrealdb import SurrealDB
 
 
-class Migration:
+class BaseMigration:
     """
     FIXME: Document.
 
@@ -59,5 +59,5 @@ class Migration:
 
 
 __all__ = [
-    'Migration',
+    'BaseMigration',
 ]
