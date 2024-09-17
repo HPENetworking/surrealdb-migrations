@@ -173,14 +173,14 @@ def parse_args(argv=None):
     migrate = subcommands.add_parser('migrate')
     migrate.add_argument(
         '--datetime',
-        default=datetime.now(tz=timezone.utc),
+        default=datetime.now(tz=timezone.utc).isoformat(),
         help='Migrate database up to the given datetime (ISO8601)',
     )
 
     rollback = subcommands.add_parser('rollback')
     rollback.add_argument(
         '--datetime',
-        default=datetime.now(tz=timezone.utc),
+        default=datetime.now(tz=timezone.utc).isoformat(),
         help='Rollback database down to the given datetime (ISO8601)',
     )
 
