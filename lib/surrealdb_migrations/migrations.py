@@ -23,6 +23,7 @@ from os import environ
 from pathlib import Path
 from logging import getLogger
 from datetime import datetime, timezone
+from importlib import util
 
 from surrealdb import Surreal
 
@@ -71,7 +72,7 @@ class MigrationsManager:
             'username': self.config.database.username,
             'password': password,
         })
-        log.info(f'Successfully connected and signed in!')
+        log.info('Successfully connected and signed in!')
 
     def do_create(self, name):
         """
@@ -92,22 +93,82 @@ class MigrationsManager:
         filename.write_text(MIGRATION_TPL, encoding='utf-8')
         log.info(f'Migration file {filename} created!')
 
+    def _list_db_migrations(self):
+        # migrations = self.db.query(
+        #     f'SELECT name FROM {self.config.migrations.metastore} '
+        #     'ORDER BY created_at DESC'
+        # )
+        # migrations[0].get('result', [])
+        return []
+
     def _list_migrations(self):
         directory = Path(self.config.migrations.directory)
         return sorted(directory.glob('*.py'))
 
     def _insert_migration(self, migration):
-        pass
+        """
+        Store the migration's timestamp in the database.
+        """
+        query = (
+            f'CREATE {self.config.migrations.metastore} SET '
+            'name = $name, '
+            'created_at =  $timestamp; '
+        )
+        migration = self.db.query(
+            query,
+            {'name': migration, 'timestamp': datetime.now(tz=timezone.utc)}
+        )
+
+        return next(iter(migration))
 
     def do_migrate(self, to_datetime=None):
         """
         Execute all relevant migrations.
         """
+        directory = Path(self.config.migrations.directory)
         log.info(f'Executing migration up to {to_datetime.isoformat()} ...')
+
+        files = self._list_migrations()
         self._connect()
+        applied_migrations = self._list_db_migrations()
+
+        migrations_to_apply = [
+            migration_file.name for migration_file in files
+            if (
+                not applied_migrations or
+                migration_file > applied_migrations[0]
+            )
+        ]
+
+        if to_datetime:
+            migrations_to_apply = list(
+                filter(
+                    lambda migration: migration < to_datetime.isoformat(),
+                    migrations_to_apply
+                )
+            )
+
+        for migration in migrations_to_apply:
+            try:
+                spec = util.spec_from_file_location(migration, directory / migration)  # noqa
+                module = util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                migration_obj = module.Migration(config=self.config)
+                migration_obj.db = self.db
+                migration_obj.upgrade()
+                self._insert_migration(migration)
+            except Exception as e:
+                log.error(f'Failed to apply: {migration}')
+                if hasattr(e, 'message'):
+                    log.error(e.message)
+                raise e
 
     def _delete_migration(self, migration):
-        pass
+        # self.db.delete(f'{self.config.migrations.metastore}:migration')
+        query = (
+            f'DELETE {self.config.migrations.metastore} WHERE name = $name; '
+        )
+        self.db.query(query, {'name': migration})
 
     def do_rollback(self, to_datetime=None):
         """

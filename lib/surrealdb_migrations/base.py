@@ -19,10 +19,6 @@
 Module for migrations base class.
 """
 
-from os import environ
-
-from surrealdb import SurrealDB
-
 
 class BaseMigration:
     """
@@ -34,22 +30,6 @@ class BaseMigration:
     def __init__(self, config):
         self.config = config
         self.db = None
-
-    def _connect(self):
-
-        password_env = self.config.database.password_env
-        password = environ.get(password_env, None)
-        if password is None:
-            raise RuntimeError(
-                'Database password environment variable '
-                f'{password_env} is not set'
-            )
-
-        self.db = SurrealDB(self.config.database.url)
-        self.db.signin({
-            'username': self.config.database.username,
-            'password': password,
-        })
 
     def upgrade(self):
         raise NotImplementedError
