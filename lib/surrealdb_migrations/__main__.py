@@ -24,6 +24,7 @@ Install this package, then execute the following to run this module::
 """
 
 from logging import getLogger
+from asyncio import get_event_loop
 
 from .migrations import MigrationsManager
 
@@ -50,14 +51,28 @@ def main():
     log.debug(f'Configuration:\n{config}')
     log.debug(f'Arguments:\n{args}')
 
+    # Synchronous operations
     if args.command == 'create':
         mgr.do_create(args.name)
-    elif args.command == 'migrate':
-        mgr.do_migrate(to_datetime=args.datetime)
-    elif args.command == 'rollback':
-        mgr.do_rollback(to_datetime=args.datetime)
     elif args.command == 'list':
         mgr.do_list()
+
+    # Asynchronous operations
+    elif args.command in ['migrate', 'rollback']:
+
+        loop = get_event_loop()
+
+        if args.command == 'migrate':
+            loop.run_until_complete(
+                mgr.do_migrate(to_datetime=args.datetime)
+            )
+        elif args.command == 'rollback':
+            loop.run_until_complete(
+                mgr.do_rollback(to_datetime=args.datetime)
+            )
+
+        loop.close()
+
     else:
         raise RuntimeError(f'Unknown command {args.command}')
 

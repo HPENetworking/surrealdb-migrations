@@ -29,12 +29,11 @@ class BaseMigration:
 
     def __init__(self, config):
         self.config = config
-        self.db = None
 
-    def upgrade(self):
+    async def upgrade(self, db):
         raise NotImplementedError
 
-    def downgrade(self):
+    async def downgrade(self, db):
         raise NotImplementedError
 
 

@@ -16,7 +16,7 @@
 
 
 """
-Module to manage (create, upgrade, downgrade) migrations.
+Module to manage (create, migrate, rollback and list) migrations.
 """
 
 from os import environ
@@ -37,10 +37,10 @@ from surrealdb_migrations.base import BaseMigration
 
 class Migration(BaseMigration):
 
-    def upgrade(self):
+    async def upgrade(self, db):
         pass
 
-    def downgrade(self):
+    async def downgrade(self, db):
         pass
 """
 
@@ -56,7 +56,7 @@ class MigrationsManager:
         self.config = config
         self.db = None
 
-    def _connect(self):
+    async def _connect(self):
 
         password_env = self.config.database.password_env
         password = environ.get(password_env, None)
@@ -67,11 +67,18 @@ class MigrationsManager:
             )
 
         log.info(f'Connecting SurrealDB at {self.config.database.url} ...')
+
         self.db = Surreal(self.config.database.url)
-        self.db.signin({
-            'username': self.config.database.username,
-            'password': password,
+        await self.db.connect()
+        await self.db.signin({
+            'user': self.config.database.username,
+            'pass': password,
         })
+        await self.db.use(
+            self.config.database.namespace,
+            self.config.database.database,
+        )
+
         log.info('Successfully connected and signed in!')
 
     def do_create(self, name):
@@ -81,31 +88,45 @@ class MigrationsManager:
         directory = Path(self.config.migrations.directory)
         directory.mkdir(parents=True, exist_ok=True)
 
-        now = datetime.now(tz=timezone.utc)
+        # ISO8601 is not file system safe, doing base replacement to keep
+        # some amount of compatibility
+        now = datetime.now(tz=timezone.utc).isoformat()
+        for replace, replacement in (
+            ('.', '_'),
+            (':', '_'),
+            ('+', '_'),
+        ):
+            now = now.replace(replace, replacement)
 
         filename = directory / '{}_{}.py'.format(
-            now.isoformat(),
+            now,
+            # TODO: Improve, create a slug function
             name.lower().replace(' ', '_').replace('-', '_'),
-
         )
         log.info(f'Creating migration file {filename} ...')
 
         filename.write_text(MIGRATION_TPL, encoding='utf-8')
         log.info(f'Migration file {filename} created!')
 
-    def _list_db_migrations(self):
-        # migrations = self.db.query(
+    async def _list_db_migrations(self):
+        # migrations = await self.db.query(
         #     f'SELECT name FROM {self.config.migrations.metastore} '
         #     'ORDER BY created_at DESC'
         # )
-        # migrations[0].get('result', [])
+        # return migrations[0].get('result', [])
         return []
 
     def _list_migrations(self):
         directory = Path(self.config.migrations.directory)
-        return sorted(directory.glob('*.py'))
+        migrations = sorted(directory.glob('*.py'))
 
-    def _insert_migration(self, migration):
+        log.info(f'Migrations located at {directory}:')
+        for migration in migrations:
+            log.info(migration.name)
+
+        return migrations
+
+    async def _insert_migration(self, migration):
         """
         Store the migration's timestamp in the database.
         """
@@ -114,14 +135,14 @@ class MigrationsManager:
             'name = $name, '
             'created_at =  $timestamp; '
         )
-        migration = self.db.query(
+        migration = await self.db.query(
             query,
             {'name': migration, 'timestamp': datetime.now(tz=timezone.utc)}
         )
 
         return next(iter(migration))
 
-    def do_migrate(self, to_datetime=None):
+    async def do_migrate(self, to_datetime=None):
         """
         Execute all relevant migrations.
         """
@@ -129,14 +150,20 @@ class MigrationsManager:
         log.info(f'Executing migration up to {to_datetime.isoformat()} ...')
 
         files = self._list_migrations()
-        self._connect()
-        applied_migrations = self._list_db_migrations()
+
+        await self._connect()
+
+        log.info('Fetching applied migrations ...')
+        applied_migrations = await self._list_db_migrations()
+        log.info('Migrations applied:\n')
+        for applied in applied_migrations:
+            log.info(applied)
 
         migrations_to_apply = [
             migration_file.name for migration_file in files
             if (
-                not applied_migrations or
-                migration_file > applied_migrations[0]
+                not applied_migrations
+                or migration_file > applied_migrations[0]
             )
         ]
 
@@ -150,35 +177,42 @@ class MigrationsManager:
 
         for migration in migrations_to_apply:
             try:
-                spec = util.spec_from_file_location(migration, directory / migration)  # noqa
+                # Import module
+                spec = util.spec_from_file_location(
+                    migration, directory / migration,
+                )
                 module = util.module_from_spec(spec)
                 spec.loader.exec_module(module)
-                migration_obj = module.Migration(config=self.config)
-                migration_obj.db = self.db
-                migration_obj.upgrade()
-                self._insert_migration(migration)
+
+                # Execute migration
+                migration_obj = module.Migration(self.config)
+                await migration_obj.upgrade(self.db)
+
+                await self._insert_migration(migration)
+
             except Exception as e:
                 log.error(f'Failed to apply: {migration}')
                 if hasattr(e, 'message'):
                     log.error(e.message)
+
                 raise e
 
-    def _delete_migration(self, migration):
+    async def _delete_migration(self, migration):
         # self.db.delete(f'{self.config.migrations.metastore}:migration')
         query = (
             f'DELETE {self.config.migrations.metastore} WHERE name = $name; '
         )
-        self.db.query(query, {'name': migration})
+        await self.db.query(query, {'name': migration})
 
-    def do_rollback(self, to_datetime=None):
+    async def do_rollback(self, to_datetime=None):
         """
         Rollback all relevant migrations.
         """
         log.info(f'Executing rollback down to {to_datetime.isoformat()} ...')
-        self._connect()
+        await self._connect()
 
     def do_list(self):
-        log.info(self._list_migrations())
+        self._list_migrations()
 
 
 __all__ = [

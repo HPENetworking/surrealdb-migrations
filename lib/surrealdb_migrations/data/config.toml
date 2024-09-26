@@ -1,7 +1,9 @@
 [database]
-url = "ws://localhost:8000/migrations/migrations"
-username = "user"
+url = "ws://localhost:8000/rpc"
+username = "root"
 password_env = "SURREALDB_PASSWORD"
+namespace = "migrations"
+database = "migrations"
 
 [migrations]
 directory = "migrations"
