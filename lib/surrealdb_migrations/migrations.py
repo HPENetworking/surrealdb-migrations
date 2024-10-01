@@ -81,6 +81,11 @@ class MigrationsManager:
 
         log.info('Successfully connected and signed in!')
 
+    async def close(self):
+        log.info('Closing database connection ...')
+        await self.db.close()
+        log.info('Database connection successfully closed!')
+
     def do_create(self, name):
         """
         Create a new migration file.
@@ -109,12 +114,13 @@ class MigrationsManager:
         log.info(f'Migration file {filename} created!')
 
     async def _list_db_migrations(self):
-        # migrations = await self.db.query(
-        #     f'SELECT name FROM {self.config.migrations.metastore} '
-        #     'ORDER BY created_at DESC'
-        # )
-        # return migrations[0].get('result', [])
-        return []
+        migrations = await self.db.query(
+            f'SELECT name, created_at FROM {self.config.migrations.metastore} '
+            'ORDER BY created_at DESC'
+        )
+        result = migrations[0].get('result', []) if migrations else []
+
+        return [item['name'] for item in result]
 
     def _list_migrations(self):
         directory = Path(self.config.migrations.directory)
@@ -133,13 +139,14 @@ class MigrationsManager:
         query = (
             f'CREATE {self.config.migrations.metastore} SET '
             'name = $name, '
-            'created_at =  $timestamp; '
+            'created_at =  time::now() '
         )
         migration = await self.db.query(
             query,
-            {'name': migration, 'timestamp': datetime.now(tz=timezone.utc)}
+            {
+                'name': migration
+            }
         )
-
         return next(iter(migration))
 
     async def do_migrate(self, to_datetime=None):
@@ -155,7 +162,7 @@ class MigrationsManager:
 
         log.info('Fetching applied migrations ...')
         applied_migrations = await self._list_db_migrations()
-        log.info('Migrations applied:\n')
+        log.info(f'Migrations applied ({len(applied_migrations)} scripts):\n')
         for applied in applied_migrations:
             log.info(applied)
 
@@ -163,7 +170,7 @@ class MigrationsManager:
             migration_file.name for migration_file in files
             if (
                 not applied_migrations
-                or migration_file > applied_migrations[0]
+                or migration_file.name > applied_migrations[0]
             )
         ]
 
@@ -177,6 +184,7 @@ class MigrationsManager:
 
         for migration in migrations_to_apply:
             try:
+                log.info(f'Applying migration: {migration}')
                 # Import module
                 spec = util.spec_from_file_location(
                     migration, directory / migration,
@@ -192,10 +200,13 @@ class MigrationsManager:
 
             except Exception as e:
                 log.error(f'Failed to apply: {migration}')
+                await self.close()
                 if hasattr(e, 'message'):
                     log.error(e.message)
 
                 raise e
+
+        await self.close()
 
     async def _delete_migration(self, migration):
         # self.db.delete(f'{self.config.migrations.metastore}:migration')
@@ -210,6 +221,7 @@ class MigrationsManager:
         """
         log.info(f'Executing rollback down to {to_datetime.isoformat()} ...')
         await self._connect()
+        await self.close()
 
     def do_list(self):
         self._list_migrations()
