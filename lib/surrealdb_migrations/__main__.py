@@ -58,19 +58,26 @@ def main():
         mgr.do_list()
 
     # Asynchronous operations
-    elif args.command in ['migrate', 'rollback']:
+    elif args.command in ['status', 'migrate', 'rollback']:
 
         loop = get_event_loop()
 
-        if args.command == 'migrate':
-            loop.run_until_complete(
-                mgr.do_migrate(to_datetime=args.datetime)
-            )
-        elif args.command == 'rollback':
-            loop.run_until_complete(
-                mgr.do_rollback(to_datetime=args.datetime)
-            )
+        if args.command == 'status':
+            async def command():
+                async with mgr:
+                    await mgr.do_status()
 
+        elif args.command == 'migrate':
+            async def command():
+                async with mgr:
+                    await mgr.do_migrate(to_datetime=args.datetime)
+
+        elif args.command == 'rollback':
+            async def command():
+                async with mgr:
+                    await mgr.do_rollback(to_datetime=args.datetime)
+
+        loop.run_until_complete(command())
         loop.close()
 
     else:

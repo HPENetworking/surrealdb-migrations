@@ -81,10 +81,17 @@ class MigrationsManager:
 
         log.info('Successfully connected and signed in!')
 
-    async def close(self):
-        log.info('Closing database connection ...')
+    async def _close(self):
+        log.debug('Closing database connection ...')
         await self.db.close()
-        log.info('Database connection successfully closed!')
+        log.debug('Database connection successfully closed!')
+
+    async def __aenter__(self):
+        await self._connect()
+        return
+
+    async def __aexit__(self, type, value, traceback):
+        await self._close()
 
     def do_create(self, name):
         """
@@ -113,6 +120,19 @@ class MigrationsManager:
         filename.write_text(MIGRATION_TPL, encoding='utf-8')
         log.info(f'Migration file {filename} created!')
 
+    def _list_fs_migrations(self):
+        directory = Path(self.config.migrations.directory)
+        migrations = sorted(directory.glob('*.py'))
+
+        log.info(f'Migrations located at {directory}:')
+        for migration in migrations:
+            log.info(f'-> {migration.name}')
+
+        return migrations
+
+    def do_list(self):
+        self._list_fs_migrations()
+
     async def _list_db_migrations(self):
         migrations = await self.db.query(
             f'SELECT name, created_at FROM {self.config.migrations.metastore} '
@@ -122,15 +142,27 @@ class MigrationsManager:
 
         return [item['name'] for item in result]
 
-    def _list_migrations(self):
-        directory = Path(self.config.migrations.directory)
-        migrations = sorted(directory.glob('*.py'))
+    async def do_status(self):
+        applied = await self._list_db_migrations()
 
-        log.info(f'Migrations located at {directory}:')
-        for migration in migrations:
-            log.info(migration.name)
+        if not applied:
+            log.info('No migrations are applied in the database')
+            return
 
-        return migrations
+        log.info('Current applied migrations in the database:')
+        for migration in applied:
+            log.info(f'-> {migration}')
+
+    async def _create_metastore_table(self):
+        table = self.config.migrations.metastore
+        query = (
+            f'DEFINE TABLE IF NOT EXISTS {table} SCHEMAFULL; '
+            f'DEFINE FIELD IF NOT EXISTS id ON {table}; '
+            f'DEFINE FIELD IF NOT EXISTS name ON {table} TYPE string; '
+            f'DEFINE FIELD IF NOT EXISTS created_at ON {table} TYPE datetime; '
+        )
+        await self.db.query(query)
+        log.debug('Successfully created the metastore table!')
 
     async def _insert_migration(self, migration):
         """
@@ -139,12 +171,13 @@ class MigrationsManager:
         query = (
             f'CREATE {self.config.migrations.metastore} SET '
             'name = $name, '
-            'created_at =  time::now() '
+            'created_at = $time '
         )
         migration = await self.db.query(
             query,
             {
-                'name': migration
+                'name': migration,
+                'time': f'd"{datetime.now(tz=timezone.utc).isoformat()}"',
             }
         )
         return next(iter(migration))
@@ -156,21 +189,25 @@ class MigrationsManager:
         directory = Path(self.config.migrations.directory)
         log.info(f'Executing migration up to {to_datetime.isoformat()} ...')
 
-        files = self._list_migrations()
-
-        await self._connect()
+        files = self._list_fs_migrations()
 
         log.info('Fetching applied migrations ...')
-        applied_migrations = await self._list_db_migrations()
-        log.info(f'Migrations applied ({len(applied_migrations)} scripts):\n')
-        for applied in applied_migrations:
-            log.info(applied)
+        migrations_applied = await self._list_db_migrations()
+
+        if not migrations_applied:
+            log.info('No migrations are applied')
+        else:
+            log.info(
+                f'Migrations applied ({len(migrations_applied)} scripts):\n'
+            )
+            for applied in migrations_applied:
+                log.info(applied)
 
         migrations_to_apply = [
             migration_file.name for migration_file in files
             if (
-                not applied_migrations
-                or migration_file.name > applied_migrations[0]
+                not migrations_applied
+                or migration_file.name > migrations_applied[0]
             )
         ]
 
@@ -182,9 +219,13 @@ class MigrationsManager:
                 )
             )
 
+        if migrations_to_apply:
+            await self._create_metastore_table()
+
         for migration in migrations_to_apply:
             try:
                 log.info(f'Applying migration: {migration}')
+
                 # Import module
                 spec = util.spec_from_file_location(
                     migration, directory / migration,
@@ -200,13 +241,10 @@ class MigrationsManager:
 
             except Exception as e:
                 log.error(f'Failed to apply: {migration}')
-                await self.close()
                 if hasattr(e, 'message'):
                     log.error(e.message)
 
                 raise e
-
-        await self.close()
 
     async def _delete_migration(self, migration):
         # self.db.delete(f'{self.config.migrations.metastore}:migration')
@@ -220,11 +258,6 @@ class MigrationsManager:
         Rollback all relevant migrations.
         """
         log.info(f'Executing rollback down to {to_datetime.isoformat()} ...')
-        await self._connect()
-        await self.close()
-
-    def do_list(self):
-        self._list_migrations()
 
 
 __all__ = [

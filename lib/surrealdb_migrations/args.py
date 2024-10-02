@@ -170,6 +170,9 @@ def parse_args(argv=None):
         help='Name of the migration file',
     )
 
+    subcommands.add_parser('list')
+    subcommands.add_parser('status')
+
     migrate = subcommands.add_parser('migrate')
     migrate.add_argument(
         '--datetime',
@@ -183,8 +186,6 @@ def parse_args(argv=None):
         default=datetime.now(tz=timezone.utc).isoformat(),
         help='Rollback database down to the given datetime (ISO8601)',
     )
-
-    subcommands.add_parser('list')
 
     # Parse and validate arguments
     args = parser.parse_args(argv)
