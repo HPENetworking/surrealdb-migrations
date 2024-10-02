@@ -198,10 +198,10 @@ class MigrationsManager:
             log.info('No migrations are applied')
         else:
             log.info(
-                f'Migrations applied ({len(migrations_applied)} scripts):\n'
+                f'Migrations applied: {len(migrations_applied)}'
             )
             for applied in migrations_applied:
-                log.info(applied)
+                log.info(f'-> {applied}')
 
         migrations_to_apply = [
             migration_file.name for migration_file in files
@@ -219,12 +219,16 @@ class MigrationsManager:
                 )
             )
 
-        if migrations_to_apply:
-            await self._create_metastore_table()
+        if not migrations_to_apply:
+            log.info('No migrations need to be applied')
+            return
+
+        await self._create_metastore_table()
+        log.info(f'Applying {len(migrations_to_apply)} migrations ...')
 
         for migration in migrations_to_apply:
             try:
-                log.info(f'Applying migration: {migration}')
+                log.info(f'-> {migration}')
 
                 # Import module
                 spec = util.spec_from_file_location(
@@ -245,6 +249,10 @@ class MigrationsManager:
                     log.error(e.message)
 
                 raise e
+
+        log.info(
+            f'Successfully applied {len(migrations_to_apply)} migrations'
+        )
 
     async def _delete_migration(self, migration):
         # self.db.delete(f'{self.config.migrations.metastore}:migration')
