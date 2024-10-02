@@ -15,7 +15,8 @@ Documentation
 
 Features
 =============
-- **Create new migrations**: Generate migration scripts for database schema changes.
+- **Create new migrations**: Generate migration scripts for database schema
+  changes.
 - **Run migrations**: Apply migrations to update your database schema and data.
 - **Rollback migrations**: Revert changes applied by previous migrations.
 - **List migrations**: List all migration scripts that exist in the directory.
@@ -44,11 +45,39 @@ General Options
 
 The following options can be applied to any command in the migration tool:
 
-- **`-c` or `--conf`**: Specifies a custom configuration file. Use this option to provide the path to a custom configuration file that defines settings such as where migration scripts are stored.
+- **``-c`` or ``--conf``**: Specifies a custom configuration file. Use this
+  option to provide the path to a custom configuration file that defines
+  settings such as where migration scripts are stored.
 
   .. code-block:: bash
 
-      surrealdb_migrations <command> --conf /path/to/config.toml
+     surrealdb_migrations <command> --conf /path/to/config.toml
+
+
+Configuration file
+------------------
+
+The following is the default values of the configuration file:
+
+.. code-block:: toml
+
+   [database]
+   url = "ws://localhost:8000/rpc"
+   username = "root"
+   password_env = "SURREALDB_PASSWORD"
+   namespace = "migrations"
+   database = "migrations"
+
+   [migrations]
+   directory = "migrations"
+   metastore = "_migrations"
+
+The configuration file must be in TOML format, and only the values that needs
+to be overriden needs to be specified.
+
+The database user password will be fetch from the environment variable
+specified in ``password_env`` configuration file.
+
 
 Commands
 --------
@@ -69,7 +98,7 @@ The tool provides several commands to manage migrations:
 
    .. code-block:: bash
 
-      surrealdb_migrations list 
+      surrealdb_migrations list
 
    This will output a list of all migration files, including both applied and
    pending migrations.
@@ -80,18 +109,22 @@ The tool provides several commands to manage migrations:
 
    .. code-block:: bash
 
-       surrealdb_migrations migrate
+      surrealdb_migrations migrate
 
-   This command will apply any migrations that have not yet been run on your SurrealDB instance.
+   This command will apply any migrations that have not yet been run on your
+   SurrealDB instance.
 
-   If you want to apply migrations up to a certain date, use the `--datetime` option:
+   If you want to apply migrations up to a certain date, use the
+   ``--datetime`` option:
 
    .. code-block:: bash
 
-       surrealdb_migrations migrate --datetime=2024-10-01T22:54:50.040825+00:00
+      surrealdb_migrations migrate --datetime=2024-10-01T22:54:50.040825+00:00
 
-   The `--datetime` argument accepts an ISO 8601 date, allowing you to apply all migrations up to the specified date.
-   The format is `YYYY-MM-DDTHH:MM:SS.ssssss+00:00` (e.g., `2024-10-01T22:54:50.040825+00:00`).
+   The ``--datetime`` argument accepts an ISO 8601 date, allowing you to apply
+   all migrations up to the specified date.
+   The format is ``YYYY-MM-DDTHH:MM:SS.ssssss+00:00``
+   (e.g., ``2024-10-01T22:54:50.040825+00:00``).
 
 4. **Rolling Back Migrations**
 
@@ -103,14 +136,16 @@ The tool provides several commands to manage migrations:
 
    This command will revert the most recently applied migration.
 
-   If you want to rollback to a specific date, use the `--datetime` option:
+   If you want to rollback to a specific date, use the ``--datetime`` option:
 
    .. code-block:: bash
 
        surrealdb_migrations rollback --datetime=2024-10-01T22:54:50.040825+00:00
 
-   The `--datetime` argument accepts an ISO 8601 date, allowing you to revert
-   all migrations applied after the specified date. The format is `YYYY-MM-DDTHH:MM:SS.ssssss+00:00` (e.g., `2024-10-01T22:54:50.040825+00:00`).
+   The ``--datetime`` argument accepts an ISO 8601 date, allowing you to revert
+   all migrations applied after the specified date. The format is
+   ``YYYY-MM-DDTHH:MM:SS.ssssss+00:00``
+   (e.g., ``2024-10-01T22:54:50.040825+00:00``).
 
 
 Changelog
