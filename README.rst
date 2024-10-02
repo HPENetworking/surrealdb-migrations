@@ -2,9 +2,11 @@
 Surrealdb Migrations
 ====================
 
-The SurrealDB migrations tool helps you manage database schema changes and data
-migrations for your SurrealDB database. It provides a simple, CLI-based
-approach to handle migrations effectively in a Python application environment.
+The `SurrealDB <https://surrealdb.com/>`_ migrations tool helps you manage
+database schema changes and data migrations for your SurrealDB database.
+
+It provides a simple, CLI-based approach to handle migrations effectively in a
+Python application environment.
 
 
 Documentation
@@ -14,12 +16,15 @@ Documentation
 
 
 Features
-=============
+========
+
 - **Create new migrations**: Generate migration scripts for database schema
   changes.
+- **List migrations**: List all migration scripts that exist in the migrations
+  directory.
+- **Database status**: List all migration that are applied in the database.
 - **Run migrations**: Apply migrations to update your database schema and data.
 - **Rollback migrations**: Revert changes applied by previous migrations.
-- **List migrations**: List all migration scripts that exist in the directory.
 
 
 Prerequisites
@@ -45,7 +50,7 @@ General Options
 
 The following options can be applied to any command in the migration tool:
 
-- **``-c`` or ``--conf``**: Specifies a custom configuration file. Use this
+- ``-c`` or ``--conf``: Specifies a custom configuration file. Use this
   option to provide the path to a custom configuration file that defines
   settings such as where migration scripts are stored.
 
@@ -178,4 +183,3 @@ License
    WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
    License for the specific language governing permissions and limitations
    under the License.
-
