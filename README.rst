@@ -108,7 +108,15 @@ The tool provides several commands to manage migrations:
    This will output a list of all migration files, including both applied and
    pending migrations.
 
-3. **Applying Migrations**
+3. **Checking Database Status**
+
+   To see the list of applied migrations, run:
+
+   .. code-block:: bash
+
+      surrealdb_migrations status
+
+4. **Applying Migrations**
 
    To apply all pending migrations, run:
 
@@ -131,7 +139,7 @@ The tool provides several commands to manage migrations:
    The format is ``YYYY-MM-DDTHH:MM:SS.ssssss+00:00``
    (e.g., ``2024-10-01T22:54:50.040825+00:00``).
 
-4. **Rolling Back Migrations**
+5. **Rolling Back Migrations**
 
    To rollback the last applied migration, run:
 
