@@ -133,10 +133,22 @@ class MigrationsManager:
     def do_list(self):
         self._list_fs_migrations()
 
-    async def _list_db_migrations(self):
-        migrations = await self.db.query(
+    async def _list_db_migrations(self, to_datetime=None):
+        vars = {}
+        query = (
             f'SELECT name, created_at FROM {self.config.migrations.metastore} '
+            ' {} '
             'ORDER BY created_at DESC'
+        )
+
+        if to_datetime:
+            query = query.format('WHERE name >= $to_datetime ')
+            vars['to_datetime'] = to_datetime.isoformat()
+        else:
+            query = query.format('')
+
+        migrations = await self.db.query(
+            query, vars
         )
         result = migrations[0].get('result', []) if migrations else []
 
@@ -255,17 +267,50 @@ class MigrationsManager:
         )
 
     async def _delete_migration(self, migration):
-        # self.db.delete(f'{self.config.migrations.metastore}:migration')
         query = (
-            f'DELETE {self.config.migrations.metastore} WHERE name = $name; '
+            f'DELETE {self.config.migrations.metastore} WHERE name = $name '
         )
-        await self.db.query(query, {'name': migration})
+        response = await self.db.query(query, {'name': migration})
+        return next(iter(response))
 
     async def do_rollback(self, to_datetime=None):
         """
         Rollback all relevant migrations.
         """
+        directory = Path(self.config.migrations.directory)
         log.info(f'Executing rollback down to {to_datetime.isoformat()} ...')
+
+        migrations_to_rollback = await self._list_db_migrations(to_datetime)
+        log.info(f'Rolling back {len(migrations_to_rollback)} migrations ...')
+
+        for migration in migrations_to_rollback:
+            try:
+                log.info(f'-> {migration}')
+
+                # Import module
+                spec = util.spec_from_file_location(
+                    migration, directory / migration,
+                )
+                module = util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+
+                # Execute rollback
+                migration_obj = module.Migration(self.config)
+                await migration_obj.downgrade(self.db)
+
+                await self._delete_migration(migration)
+
+            except Exception as e:
+                log.error(f'Failed to roll back: {migration}')
+                if hasattr(e, 'message'):
+                    log.error(e.message)
+
+                raise e
+
+        log.info(
+            f'Successfully rolled back {len(migrations_to_rollback)} '
+            'migrations'
+        )
 
 
 __all__ = [
