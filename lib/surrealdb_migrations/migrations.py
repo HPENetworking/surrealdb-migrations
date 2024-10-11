@@ -122,11 +122,17 @@ class MigrationsManager:
 
     def _list_fs_migrations(self):
         directory = Path(self.config.migrations.directory)
-        migrations = sorted(directory.glob('*.py'))
+        files = sorted(directory.glob('*.py'))
+        migrations = []
 
         log.info(f'Migrations located at {directory}:')
-        for migration in migrations:
+        for file in files:
+            created_at = parse_date(file)
             log.info(f'-> {migration.name}')
+            migrations.append({
+                'created_at': created_at,
+                'name': file.name,
+            })
 
         return migrations
 
@@ -134,13 +140,17 @@ class MigrationsManager:
         self._list_fs_migrations()
 
     async def _list_db_migrations(self):
+        """
+        {
+            'created_at': '2024-10-10T23:07:22.984513Z',
+            'name': '2024-09-26T20_38_44_176869_00_00_this_is_a_test.py'
+        }
+        """
         migrations = await self.db.query(
             f'SELECT name, created_at FROM {self.config.migrations.metastore} '
             'ORDER BY created_at DESC'
         )
-        result = migrations[0].get('result', []) if migrations else []
-
-        return [item['name'] for item in result]
+        return migrations[0]['result']
 
     async def do_status(self):
         applied = await self._list_db_migrations()
@@ -150,8 +160,13 @@ class MigrationsManager:
             return
 
         log.info('Current applied migrations in the database:')
+        log.info('[APPLIED AT]                   [NAME]')
         for migration in applied:
-            log.info(f'-> {migration}')
+            log.info(
+                f'{migration["created_at"]}'
+                '    '
+                f'{migration["name"]}'
+            )
 
     async def _create_metastore_table(self):
         table = self.config.migrations.metastore
@@ -195,19 +210,24 @@ class MigrationsManager:
         migrations_applied = await self._list_db_migrations()
 
         if not migrations_applied:
-            log.info('No migrations are applied')
+            log.info('No migrations are currently applied')
         else:
             log.info(
-                f'Migrations applied: {len(migrations_applied)}'
+                f'Migrations currently applied: {len(migrations_applied)}'
             )
-            for applied in migrations_applied:
-                log.info(f'-> {applied}')
+            log.info('[APPLIED AT]                   [NAME]')
+            for migration in migrations_applied:
+                log.info(
+                    f'{migration["created_at"]}'
+                    '    '
+                    f'{migration["name"]}'
+                )
 
         migrations_to_apply = [
             migration_file.name for migration_file in files
             if (
                 not migrations_applied
-                or migration_file.name > migrations_applied[0]
+                or migration_file.name > migrations_applied[0]['name']
             )
         ]
 
