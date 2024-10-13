@@ -255,17 +255,57 @@ class MigrationsManager:
         )
 
     async def _delete_migration(self, migration):
-        # self.db.delete(f'{self.config.migrations.metastore}:migration')
         query = (
-            f'DELETE {self.config.migrations.metastore} WHERE name = $name; '
+            f'DELETE {self.config.migrations.metastore} WHERE name = $name '
         )
-        await self.db.query(query, {'name': migration})
+        response = await self.db.query(query, {'name': migration})
+        return next(iter(response))
 
     async def do_rollback(self, to_datetime=None):
         """
         Rollback all relevant migrations.
         """
+        directory = Path(self.config.migrations.directory)
         log.info(f'Executing rollback down to {to_datetime.isoformat()} ...')
+
+        migrations_to_rollback = await self._list_db_migrations()
+        if to_datetime:
+            migrations_to_rollback = list(
+                filter(
+                    lambda migration: migration >= to_datetime.isoformat(), # noqa
+                    migrations_to_rollback
+                )
+            )
+        log.info(f'Rolling back {len(migrations_to_rollback)} migrations ...')
+
+        for migration in migrations_to_rollback:
+            try:
+                log.info(f'-> {migration}')
+
+                # Import module
+                spec = util.spec_from_file_location(
+                    migration, directory / migration,
+                )
+                module = util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+
+                # Execute rollback
+                migration_obj = module.Migration(self.config)
+                await migration_obj.downgrade(self.db)
+
+                await self._delete_migration(migration)
+
+            except Exception as e:
+                log.error(f'Failed to roll back: {migration}')
+                if hasattr(e, 'message'):
+                    log.error(e.message)
+
+                raise e
+
+        log.info(
+            f'Successfully rolled back {len(migrations_to_rollback)} '
+            'migrations'
+        )
 
 
 __all__ = [
