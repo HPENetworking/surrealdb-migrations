@@ -135,8 +135,9 @@ class MigrationsManager:
 
     async def _list_db_migrations(self):
         migrations = await self.db.query(
-            f'SELECT name, created_at FROM {self.config.migrations.metastore} '
-            'ORDER BY created_at DESC'
+            'SELECT name, applied_date '
+            f'FROM {self.config.migrations.metastore} '
+            'ORDER BY applied_date DESC'
         )
         result = migrations[0].get('result', []) if migrations else []
 
@@ -159,7 +160,8 @@ class MigrationsManager:
             f'DEFINE TABLE IF NOT EXISTS {table} SCHEMAFULL; '
             f'DEFINE FIELD IF NOT EXISTS id ON {table}; '
             f'DEFINE FIELD IF NOT EXISTS name ON {table} TYPE string; '
-            f'DEFINE FIELD IF NOT EXISTS created_at ON {table} TYPE datetime; '
+            'DEFINE FIELD IF NOT EXISTS applied_date '
+            f'ON {table} TYPE datetime;'
         )
         await self.db.query(query)
         log.debug('Successfully created the metastore table!')
@@ -171,7 +173,7 @@ class MigrationsManager:
         query = (
             f'CREATE {self.config.migrations.metastore} SET '
             'name = $name, '
-            'created_at = $time '
+            'applied_date = $time '
         )
         migration = await self.db.query(
             query,
@@ -182,11 +184,28 @@ class MigrationsManager:
         )
         return next(iter(migration))
 
+    def _import_module(self, migration):
+        """
+        Dynamically loads a file as a Python module and executes it.
+
+        :param migration (str): The name of the migration file to load.
+
+        :return module: The dynamically loaded Python module.
+        """
+        directory = Path(self.config.migrations.directory)
+
+        spec = util.spec_from_file_location(
+            migration, directory / migration,
+        )
+        module = util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        return module
+
     async def do_migrate(self, to_datetime=None):
         """
         Execute all relevant migrations.
         """
-        directory = Path(self.config.migrations.directory)
         log.info(f'Executing migration up to {to_datetime.isoformat()} ...')
 
         files = self._list_fs_migrations()
@@ -230,13 +249,7 @@ class MigrationsManager:
             try:
                 log.info(f'-> {migration}')
 
-                # Import module
-                spec = util.spec_from_file_location(
-                    migration, directory / migration,
-                )
-                module = util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-
+                module = self._import_module(migration)
                 # Execute migration
                 migration_obj = module.Migration(self.config)
                 await migration_obj.upgrade(self.db)
