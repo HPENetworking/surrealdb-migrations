@@ -4,6 +4,7 @@
 #   installed to successfully run tests, debug them or collect metrics from
 #   the run.
 
+
 #######################
 # Debugging           #
 #######################
@@ -15,8 +16,11 @@ pprintpp
 # Testing             #
 #######################
 
+
 pytest
 pytest-cov
+pytest-asyncio
+
 
 #######################
 # Assertion           #

@@ -68,14 +68,18 @@ def main():
                     await mgr.do_status()
 
         elif args.command == 'migrate':
-            async def command():
+            async def command(to_datetime=None):
                 async with mgr:
-                    await mgr.do_migrate(to_datetime=args.datetime)
+                    await mgr.do_migrate(
+                        to_datetime=to_datetime if to_datetime else args.datetime
+                    )
 
         elif args.command == 'rollback':
-            async def command():
+            async def command(to_datetime=None):
                 async with mgr:
-                    await mgr.do_rollback(to_datetime=args.datetime)
+                    await mgr.do_rollback(
+                        to_datetime=to_datetime if to_datetime else args.datetime
+                    )
 
         else:
             raise RuntimeError(f'Unknown command {args.command}')
