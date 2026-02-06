@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-#
-# Copyright (C) 2024 Hewlett Packard Enterprise Development LP.
+# Copyright (C) 2024-2026 Hewlett Packard Enterprise Development LP.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License.
@@ -14,7 +12,6 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-
 """
 Module for migrations base class.
 """
@@ -22,7 +19,13 @@ Module for migrations base class.
 
 class BaseMigration:
     """
-    FIXME: Document.
+    Base class for all migrations.
+
+    The user will subclass this class and implement the upgrade and downgrade
+    methods.
+
+    The upgrade method will be called when the migration is applied, and the
+    downgrade method will be called when the migration is rolled back.
 
     :param Namespace config: runtime configuration to execute migration.
     """
@@ -31,9 +34,19 @@ class BaseMigration:
         self.config = config
 
     async def upgrade(self, db):
+        """
+        Apply the migration.
+
+        :param db: The database connection.
+        """
         raise NotImplementedError
 
     async def downgrade(self, db):
+        """
+        Rollback the migration.
+
+        :param db: The database connection.
+        """
         raise NotImplementedError
 
 

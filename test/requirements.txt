@@ -5,6 +5,13 @@
 #   the run.
 
 #######################
+# Style               #
+#######################
+
+flake8
+pep8-naming
+
+#######################
 # Debugging           #
 #######################
 
@@ -17,6 +24,7 @@ pprintpp
 
 pytest
 pytest-cov
+pytest-asyncio
 
 #######################
 # Assertion           #
