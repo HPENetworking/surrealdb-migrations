@@ -3,21 +3,35 @@
 Test migration upgrade for SurrealDB using surrealdb_migrations.
 """
 
-import os
 import pytest
-from surrealdb_migrations.migrations import MigrationsManager
-from surrealdb_migrations.config import load_config
-import asyncio
 
-TEST_CONFIG = os.path.join(os.path.dirname(__file__), "config", "config.toml")
+from logging import getLogger
+
+
+log = getLogger(__name__)
+
 
 @pytest.mark.asyncio
-async def test_migration_upgrade():
-	# Set required environment variable for SurrealDB password
-	os.environ["SURREALDB_PASSWORD"] = "test"  # Set to your test password
-	config = load_config(TEST_CONFIG)
-	mgr = MigrationsManager(config)
-	async with mgr:
-		# This will run all unapplied migrations in the test/migrations directory
-		await mgr.do_migrate()
-	# If no exception, test passes (further asserts can be added for state)
+async def test_migration_upgrade(migrate_manager):
+    mgr = migrate_manager
+
+    async with mgr:
+        # running all pending up migrations
+        await mgr.do_migrate()
+
+        # sanity check: table exists
+        result = await mgr.db.query("INFO FOR TABLE user;")
+        assert result, "User table was not created by migration"
+
+
+@pytest.mark.asyncio
+async def test_migration_downgrade(migrate_manager):
+    mgr = migrate_manager
+
+    async with mgr:
+        await mgr.do_migrate()
+        await mgr.do_downgrade()
+
+        # After downgrade, table should be gone
+        with pytest.raises(Exception):
+            await mgr.db.query("INFO FOR TABLE user;")

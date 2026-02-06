@@ -24,8 +24,7 @@ from pathlib import Path
 from logging import getLogger
 from datetime import datetime, timezone
 from importlib import util
-
-from lib_metadata import files
+from importlib.metadata import files
 from surrealdb import Surreal
 
 
@@ -54,10 +53,22 @@ class MigrationsManager:
     """
 
     def __init__(self, config):
+
+        log.info(
+            'Initializing MigrationsManager with config values:'
+            f'\n{config})')
+
+
+
         self.config = config
         self.db = None
 
     async def _connect(self):
+
+        log.info(
+            'Connecting to SurrealDB with the following configuration:'
+            f'\n{self.config}'
+        )
 
         password_env = self.config.database.password_env
         password = environ.get(password_env, None)
@@ -194,9 +205,12 @@ class MigrationsManager:
         :return module: The dynamically loaded Python module.
         """
         directory = Path(self.config.migrations.directory)
+        full_path = directory / migration
+
+        log.info(f"Importing migration module from {full_path}")
 
         spec = util.spec_from_file_location(
-            migration, directory / migration,
+            migration, full_path,
         )
         module = util.module_from_spec(spec)
         spec.loader.exec_module(module)
