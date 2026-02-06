@@ -25,6 +25,7 @@ from logging import getLogger
 from datetime import datetime, timezone
 from importlib import util
 
+from lib_metadata import files
 from surrealdb import Surreal
 
 
@@ -231,12 +232,10 @@ class MigrationsManager:
         ]
 
         if to_datetime:
-            migrations_to_apply = list(
-                filter(
-                    lambda migration: migration < to_datetime.isoformat(),
-                    migrations_to_apply
-                )
-            )
+            migrations_to_apply = [
+                migration_file.name for migration_file in files
+                if migration < to_datetime.isoformat()
+            ]
 
         if not migrations_to_apply:
             log.info('No migrations need to be applied')
@@ -252,6 +251,7 @@ class MigrationsManager:
                 module = self._import_module(migration)
                 # Execute migration
                 migration_obj = module.Migration(self.config)
+                #Upgrade migration
                 await migration_obj.upgrade(self.db)
 
                 await self._insert_migration(migration)
@@ -283,12 +283,12 @@ class MigrationsManager:
 
         migrations_to_rollback = await self._list_db_migrations()
         if to_datetime:
-            migrations_to_rollback = list(
-                filter(
-                    lambda migration: migration >= to_datetime.isoformat(), # noqa
-                    migrations_to_rollback
-                )
-            )
+            migrations_to_rollback = [
+                migration_file.name for migration_file in files
+                if migration >= to_datetime.isoformat()
+        ]
+
+
         log.info(f'Rolling back {len(migrations_to_rollback)} migrations ...')
 
         for migration in migrations_to_rollback:
@@ -296,14 +296,10 @@ class MigrationsManager:
                 log.info(f'-> {migration}')
 
                 # Import module
-                spec = util.spec_from_file_location(
-                    migration, directory / migration,
-                )
-                module = util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-
+                module = self._import_module(migration)
                 # Execute rollback
                 migration_obj = module.Migration(self.config)
+                # Downgrade migration
                 await migration_obj.downgrade(self.db)
 
                 await self._delete_migration(migration)
