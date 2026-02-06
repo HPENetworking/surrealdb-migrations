@@ -19,11 +19,12 @@ Module to manage (create, migrate, rollback and list) migrations.
 
 from os import environ
 from pathlib import Path
+from importlib import util
+from typing import Optional
 from logging import getLogger
 from datetime import datetime, timezone
-from importlib import util
 
-from surrealdb import AsyncSurreal
+from surrealdb import AsyncSurreal, NotFoundError
 
 
 log = getLogger(__name__)
@@ -45,17 +46,34 @@ class Migration(BaseMigration):
 
 class MigrationsManager:
     """
-    FIXME: Document.
+    Manager for handling database migrations.
+
+    This class provides methods to create, apply, rollback, and list
+    migrations files and their status in the database.
 
     :param Namespace config: runtime configuration to manage migrations.
     """
 
     def __init__(self, config):
         self.config = config
-        self.db = None
+        self.db: Optional[AsyncSurreal] = None
 
     async def _connect(self):
+        """
+        Connects to the SurrealDB database using the provided configuration.
 
+        This method retrieves the database password from the environment
+        variable specified in the configuration, establishes a connection to
+        the database, and signs in with the provided credentials. It also
+        selects the appropriate namespace and database for subsequent
+        operations.
+
+        This private method is intended is not meant to be called directly by
+        external code, use the context manager interface instead.
+
+        :raises RuntimeError: If the database password environment variable is
+         unset.
+        """
         log.info(
             'Connecting to SurrealDB with the following configuration:'
             f'\n{self.config}'
@@ -92,20 +110,57 @@ class MigrationsManager:
         log.info('Successfully connected and signed in!')
 
     async def _close(self):
-        log.debug('Closing database connection ...')
-        await self.db.close()
-        log.debug('Database connection successfully closed!')
+        """
+        Closes the connection to the SurrealDB database if it exists.
+
+        This private method is intended is not meant to be called directly by
+        external code, use the context manager interface instead.
+        """
+        if self.db is not None:
+            log.debug('Closing database connection ...')
+            await self.db.close()
+            log.debug('Database connection successfully closed!')
+            self.db = None
 
     async def __aenter__(self):
+        """
+        Connects to the database when entering the context.
+
+        Example usage:
+
+        ::
+
+            mgr = MigrationsManager(config)
+            async with mgr:
+                await mgr.do_status()
+
+        Or:
+
+        ::
+
+            async with MigrationsManager(config) as mgr:
+                await mgr.do_status()
+
+        :return MigrationsManager: The instance of the manager with an active
+         connection.
+        """
         await self._connect()
-        return
+        return self
 
     async def __aexit__(self, type, value, traceback):
+        """
+        Closes the database connection when exiting the context.
+        """
         await self._close()
 
     def do_create(self, name):
         """
         Create a new migration file.
+
+        :param str name: The name of the migration to create.
+
+        :return Path: The path to the created migration file.
+        :rtype: pathlib.Path
         """
         directory = Path(self.config.migrations.directory)
         directory.mkdir(parents=True, exist_ok=True)
@@ -130,7 +185,18 @@ class MigrationsManager:
         filename.write_text(MIGRATION_TPL, encoding='utf-8')
         log.info(f'Migration file {filename} created!')
 
+        return filename
+
     def _list_fs_migrations(self):
+        """
+        List all migration files in the configured directory.
+
+        :return list: A list of migration files sorted by name (older first).
+         The name of the file is expected to start with an ISO8601 timestamp to
+         ensure the correct order of migrations.
+         If no migration files are found, an empty list is returned.
+        :rtype: list[pathlib.Path]
+        """
         directory = Path(self.config.migrations.directory).resolve()
         migrations = sorted(directory.glob('*.py'))
 
@@ -144,58 +210,106 @@ class MigrationsManager:
         return migrations
 
     def do_list(self):
-        self._list_fs_migrations()
+        """
+        List all migration files in the configured directory.
+
+        :return list: A list of migration files sorted by name (older first).
+        :rtype: list[pathlib.Path]
+        """
+        return self._list_fs_migrations()
 
     async def _list_db_migrations(self):
-        migrations = await self.db.query(
-            'SELECT name, applied_date '
-            f'FROM {self.config.migrations.metastore} '
-            'ORDER BY applied_date DESC'
-        )
-        result = migrations[0].get('result', []) if migrations else []
+        """
+        List all applied migrations in the database.
+
+        :return list: A list of applied migration names sorted by applied date
+         in descending order (newer first).
+        :rtype: list[str]
+        """
+        table = self.config.migrations.metastore
+
+        try:
+            result = await self.db.query(
+                'SELECT name, applied_date '
+                f'FROM {table} '
+                'ORDER BY applied_date DESC;'
+            )
+
+        except NotFoundError as e:
+            if e.table_name is None:
+                raise e
+
+            # Table doesn't exist yet, totally fine
+            return []
 
         return [item['name'] for item in result]
 
     async def do_status(self):
+        """
+        List all applied migrations in the database.
+
+        :return list: A list of applied migration names sorted by applied date
+         in descending order (newer first).
+        :rtype: list[str]
+        """
         applied = await self._list_db_migrations()
 
         if not applied:
-            log.info('No migrations are applied in the database')
-            return
+            log.info('No migrations are currently applied in the database')
+            return applied
 
         log.info('Current applied migrations in the database:')
         for migration in applied:
             log.info(f'-> {migration}')
 
+        return applied
+
     async def _create_metastore_table(self):
+        """
+        Create the metastore table if it does not exist.
+
+        This table is used to store the applied migrations and their
+        timestamps.
+        """
         table = self.config.migrations.metastore
         query = (
             f'DEFINE TABLE IF NOT EXISTS {table} SCHEMAFULL; '
-            f'DEFINE FIELD IF NOT EXISTS id ON {table}; '
-            f'DEFINE FIELD IF NOT EXISTS name ON {table} TYPE string; '
-            'DEFINE FIELD IF NOT EXISTS applied_date '
-            f'ON {table} TYPE datetime;'
+            f'DEFINE FIELD IF NOT EXISTS name '
+            f'ON {table} TYPE string; '
+            f'DEFINE FIELD IF NOT EXISTS applied_date '
+            f'ON {table} TYPE datetime; '
+            f'DEFINE INDEX IF NOT EXISTS unique_migration '
+            f'ON {table} COLUMNS name UNIQUE; '
         )
         await self.db.query(query)
         log.debug('Successfully created the metastore table!')
 
     async def _insert_migration(self, migration):
         """
-        Store the migration's timestamp in the database.
+        Insert a record of the applied migration into the metastore table.
+
+        :param str migration: The name of the migration to insert.
         """
+        table = self.config.migrations.metastore
         query = (
-            f'CREATE {self.config.migrations.metastore} SET '
+            f'CREATE {table} SET '
             'name = $name, '
-            'applied_date = $time '
+            'applied_date = <datetime>$time;'
         )
-        migration = await self.db.query(
+
+        response = await self.db.query(
             query,
             {
                 'name': migration,
-                'time': f'd"{datetime.now(tz=timezone.utc).isoformat()}"',
+                'time': datetime.now(tz=timezone.utc).isoformat(),
             }
         )
-        return next(iter(migration))
+
+        record = next(iter(response))
+        log.info(
+            f'Migration record inserted into metastore {table!r}:\n{record}'
+        )
+        return record
 
     def _import_module(self, migration):
         """
@@ -206,9 +320,9 @@ class MigrationsManager:
         :return module: The dynamically loaded Python module.
         """
         directory = Path(self.config.migrations.directory)
-        import_path = directory / migration
+        import_path = (directory / migration).resolve()
 
-        log.info(f'Importing migration module from {import_path!r} ...')
+        log.info(f'Importing migration module from {import_path} ...')
 
         spec = util.spec_from_file_location(
             migration, import_path,
@@ -220,8 +334,19 @@ class MigrationsManager:
 
     async def do_migrate(self, to_datetime=None):
         """
-        Execute all relevant migrations.
+        Apply all relevant migrations.
+
+        :param datetime to_datetime: Optional datetime to migrate to.
+         Migrations with a timestamp older (less) than this datetime will be
+         applied.
+
+        :return list: A list of applied migrations names, sorted in descending
+         order (newer first).
+        :rtype: list[str]
         """
+        if to_datetime is None:
+            to_datetime = datetime.now(tz=timezone.utc)
+
         log.info(f'Executing migration up to {to_datetime.isoformat()} ...')
 
         files = self._list_fs_migrations()
@@ -230,14 +355,16 @@ class MigrationsManager:
         migrations_applied = await self._list_db_migrations()
 
         if not migrations_applied:
-            log.info('No migrations are applied')
+            log.info('No migrations are currently applied')
         else:
             log.info(
-                f'Migrations applied: {len(migrations_applied)}'
+                f'Migrations currently applied: {len(migrations_applied)}'
             )
             for applied in migrations_applied:
                 log.info(f'-> {applied}')
 
+        # Filter migration files to apply only those that are newer (greater)
+        # than the latest applied migration
         migrations_to_apply = [
             migration_file.name for migration_file in files
             if (
@@ -246,15 +373,18 @@ class MigrationsManager:
             )
         ]
 
+        # Further filter migration files to apply only those that are older
+        # (less) than the provided datetime
         if to_datetime:
             migrations_to_apply = [
-                migration for migration in migrations_to_apply
+                migration
+                for migration in migrations_to_apply
                 if migration < to_datetime.isoformat()
             ]
 
         if not migrations_to_apply:
             log.info('No migrations need to be applied')
-            return
+            return migrations_to_apply
 
         await self._create_metastore_table()
         log.info(f'Applying {len(migrations_to_apply)} migrations ...')
@@ -268,6 +398,7 @@ class MigrationsManager:
                 migration_obj = module.Migration(self.config)
                 await migration_obj.upgrade(self.db)
 
+                # Store migration in metastore
                 await self._insert_migration(migration)
 
             except Exception as e:
@@ -281,25 +412,66 @@ class MigrationsManager:
             f'Successfully applied {len(migrations_to_apply)} migrations'
         )
 
+        return migrations_to_apply
+
     async def _delete_migration(self, migration):
+        """
+        Delete a record of the applied migration from the metastore table.
+
+        :param str migration: The name of the migration to delete.
+
+        :return: The record of the deleted migration.
+        :rtype: dict
+        """
+        table = self.config.migrations.metastore
         query = (
-            f'DELETE {self.config.migrations.metastore} WHERE name = $name '
+            f'DELETE ONLY {table} '
+            'WHERE name = $name RETURN BEFORE;'
         )
+
         response = await self.db.query(query, {'name': migration})
-        return next(iter(response))
+
+        record = next(iter(response))
+        log.info(
+            f'Migration record deleted from metastore {table!r}:\n{record}'
+        )
+        return record
 
     async def do_rollback(self, to_datetime=None):
         """
         Rollback all relevant migrations.
+
+        :param datetime to_datetime: Optional datetime to rollback to.
+         Migrations with a timestamp greater than this datetime will be rolled
+         back.
+
+        :return list: A list of rolled back migration names, sorted in
+         descending order (newer first).
+        :rtype: list[str]
         """
+        if to_datetime is None:
+            to_datetime = datetime.now(tz=timezone.utc)
+
         log.info(f'Executing rollback down to {to_datetime.isoformat()} ...')
 
         migrations_to_rollback = await self._list_db_migrations()
-        if to_datetime:
-            migrations_to_rollback = [
-                migration for migration in migrations_to_rollback
-                if migration >= to_datetime.isoformat()
-            ]
+        log.info(
+            f'There are {len(migrations_to_rollback)} migrations applied...'
+        )
+
+        # Filter applied migrations to rollback only those that are newer
+        # (greater)
+        migrations_to_rollback = [
+            migration
+            for migration in migrations_to_rollback
+            if migration > to_datetime.isoformat()
+        ]
+
+        if not migrations_to_rollback:
+            log.info(
+                f'No migrations to rollback to {to_datetime.isoformat()}'
+            )
+            return []
 
         log.info(f'Rolling back {len(migrations_to_rollback)} migrations ...')
 
@@ -325,6 +497,8 @@ class MigrationsManager:
             f'Successfully rolled back {len(migrations_to_rollback)} '
             'migrations'
         )
+
+        return migrations_to_rollback
 
 
 __all__ = [
