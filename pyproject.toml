@@ -28,10 +28,13 @@ classifiers = [
 dependencies = [
     "setproctitle",
     "colorlog",
-    "tomli",
-    "surrealdb",
+    "tomli; python_version < '3.11'",
+    "surrealdb>=0.4.2",
     "objns",
+    "pytest",
+    "pytest-asyncio"
 ]
+
 
 [project.scripts]
 surrealdb_migrations = "surrealdb_migrations.__main__:main"

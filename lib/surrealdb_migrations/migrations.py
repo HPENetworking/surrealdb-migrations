@@ -24,7 +24,7 @@ from pathlib import Path
 from logging import getLogger
 from datetime import datetime, timezone
 from importlib import util
-
+from importlib.metadata import files
 from surrealdb import Surreal
 
 
@@ -53,10 +53,22 @@ class MigrationsManager:
     """
 
     def __init__(self, config):
+
+        log.info(
+            'Initializing MigrationsManager with config values:'
+            f'\n{config})')
+
+
+
         self.config = config
         self.db = None
 
     async def _connect(self):
+
+        log.info(
+            'Connecting to SurrealDB with the following configuration:'
+            f'\n{self.config}'
+        )
 
         password_env = self.config.database.password_env
         password = environ.get(password_env, None)
@@ -193,9 +205,12 @@ class MigrationsManager:
         :return module: The dynamically loaded Python module.
         """
         directory = Path(self.config.migrations.directory)
+        full_path = directory / migration
+
+        log.info(f"Importing migration module from {full_path}")
 
         spec = util.spec_from_file_location(
-            migration, directory / migration,
+            migration, full_path,
         )
         module = util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -231,12 +246,10 @@ class MigrationsManager:
         ]
 
         if to_datetime:
-            migrations_to_apply = list(
-                filter(
-                    lambda migration: migration < to_datetime.isoformat(),
-                    migrations_to_apply
-                )
-            )
+            migrations_to_apply = [
+                migration_file.name for migration_file in files
+                if migration < to_datetime.isoformat()
+            ]
 
         if not migrations_to_apply:
             log.info('No migrations need to be applied')
@@ -252,6 +265,7 @@ class MigrationsManager:
                 module = self._import_module(migration)
                 # Execute migration
                 migration_obj = module.Migration(self.config)
+                #Upgrade migration
                 await migration_obj.upgrade(self.db)
 
                 await self._insert_migration(migration)
@@ -283,12 +297,12 @@ class MigrationsManager:
 
         migrations_to_rollback = await self._list_db_migrations()
         if to_datetime:
-            migrations_to_rollback = list(
-                filter(
-                    lambda migration: migration >= to_datetime.isoformat(), # noqa
-                    migrations_to_rollback
-                )
-            )
+            migrations_to_rollback = [
+                migration_file.name for migration_file in files
+                if migration >= to_datetime.isoformat()
+        ]
+
+
         log.info(f'Rolling back {len(migrations_to_rollback)} migrations ...')
 
         for migration in migrations_to_rollback:
@@ -296,14 +310,10 @@ class MigrationsManager:
                 log.info(f'-> {migration}')
 
                 # Import module
-                spec = util.spec_from_file_location(
-                    migration, directory / migration,
-                )
-                module = util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-
+                module = self._import_module(migration)
                 # Execute rollback
                 migration_obj = module.Migration(self.config)
+                # Downgrade migration
                 await migration_obj.downgrade(self.db)
 
                 await self._delete_migration(migration)
