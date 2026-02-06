@@ -19,30 +19,18 @@
 # BASE CONTAINER      #
 #######################
 
-FROM ubuntu:20.04 as base
+FROM ubuntu:24.04 as base
 ENV DEBIAN_FRONTEND noninteractive
-
-
-# Setup and install base system Software
-RUN echo "locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8" | debconf-set-selections \
-    && echo "locales locales/default_environment_locale select en_US.UTF-8" | debconf-set-selections \
-    && apt-get update \
-    && apt-get --yes --no-install-recommends install \
-        # Base Software
-        locales tzdata ca-certificates \
-        # Developer Software
-        bash-completion nano tree \
-        # Networking Software
-        curl iproute2 iputils-ping \
-    && rm -rf /var/lib/apt/lists/*
 ENV LANG en_US.UTF-8
 
-
-# Install HPE CA
-RUN curl --insecure \
-        https://pvsdk-archive.rose.rdlabs.hpecorp.net/HPE_PrivateRootCA.crt \
-        -o /usr/local/share/ca-certificates/HPE_PrivateRootCA.crt \
-    && update-ca-certificates
+# Setup and install base system software
+RUN echo "locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8" | debconf-set-selections \
+    && echo "locales locales/default_environment_locale select en_US.UTF-8" | debconf-set-selections \
+    && apt-get update && apt-get --yes --no-install-recommends install \
+        # Base software
+        locales tzdata ca-certificates   \
+        bash-completion nano tree \
+    && rm -rf /var/lib/apt/lists/*
 
 
 # Install Python runtime stack
@@ -65,15 +53,6 @@ RUN apt-get update \
         python3-dev python3-pip python3-wheel \
         build-essential cmake git \
     && rm -rf /var/lib/apt/lists/*
-
-
-# Configure pip to use HPE PyPI
-RUN mkdir -p /root/.config/pip/ \
-    && echo "\
-[global]\n\
-index-url = https://pvsdk-pypi.rose.rdlabs.hpecorp.net/\n\
-" > /root/.config/pip/pip.conf \
-    && cat /root/.config/pip/pip.conf
 
 
 # NOTE: Uncomment and edit if needed

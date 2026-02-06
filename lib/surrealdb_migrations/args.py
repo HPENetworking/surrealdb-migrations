@@ -105,7 +105,8 @@ def validate_args(args):
 
     # Check input datetime
     if args.command in ['migrate', 'rollback']:
-        args.datetime = datetime.fromisoformat(args.datetime)
+        if args.datetime:
+            args.datetime = datetime.fromisoformat(args.datetime)
 
     return args
 
@@ -183,7 +184,6 @@ def parse_args(argv=None):
     rollback = subcommands.add_parser('rollback')
     rollback.add_argument(
         '--datetime',
-        default=datetime.now(tz=timezone.utc).isoformat(),
         help='Rollback database down to the given datetime (ISO8601)',
     )
 

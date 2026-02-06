@@ -33,5 +33,6 @@ dependencies = [
     "objns",
 ]
 
+
 [project.scripts]
 surrealdb_migrations = "surrealdb_migrations.__main__:main"
