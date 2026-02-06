@@ -19,9 +19,9 @@ Module to manage (create, migrate, rollback and list) migrations.
 
 from os import environ
 from pathlib import Path
+from importlib import util
 from logging import getLogger
 from datetime import datetime, timezone
-from importlib import util
 
 from surrealdb import AsyncSurreal
 
@@ -63,6 +63,7 @@ class MigrationsManager:
 
         password_env = self.config.database.password_env
         password = environ.get(password_env, None)
+
         if password is None:
             raise RuntimeError(
                 'Database password environment variable '
@@ -222,7 +223,10 @@ class MigrationsManager:
         """
         Execute all relevant migrations.
         """
-        log.info(f'Executing migration up to {to_datetime.isoformat()} ...')
+        log.info(
+            f'Executing migration up to {to_datetime.isoformat()} ...'
+            if to_datetime else 'Executing all pending migrations ...'
+        )
 
         files = self._list_fs_migrations()
 
@@ -250,6 +254,7 @@ class MigrationsManager:
             migrations_to_apply = [
                 migration for migration in migrations_to_apply
                 if migration < to_datetime.isoformat()
+
             ]
 
         if not migrations_to_apply:
@@ -292,7 +297,10 @@ class MigrationsManager:
         """
         Rollback all relevant migrations.
         """
-        log.info(f'Executing rollback down to {to_datetime.isoformat()} ...')
+        log.info(
+            f'Rolling back to {to_datetime.isoformat()} ...'
+            if to_datetime else 'Rolling back all pending migrations ...'
+        )
 
         migrations_to_rollback = await self._list_db_migrations()
         if to_datetime:

@@ -34,6 +34,7 @@ def load_config(configfile):
     :return: The parsed configuration file as an objns Namespace.
     :rtype: Namespace
     """
+
     config = Namespace(loads(
         files(__package__).joinpath(
             'data/config.toml'
@@ -49,6 +50,7 @@ def load_config(configfile):
     config.update(loads(
         configfile.read_text(encoding='utf-8')
     ))
+
     return config
 
 

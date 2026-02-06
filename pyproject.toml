@@ -31,7 +31,10 @@ dependencies = [
     "tomli",
     "surrealdb>=1.0.8",
     "objns",
+    "pytest",
+    "pytest-asyncio"
 ]
+
 
 [project.scripts]
 surrealdb_migrations = "surrealdb_migrations.__main__:main"
