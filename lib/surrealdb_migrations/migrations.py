@@ -131,12 +131,15 @@ class MigrationsManager:
         log.info(f'Migration file {filename} created!')
 
     def _list_fs_migrations(self):
-        directory = Path(self.config.migrations.directory)
+        directory = Path(self.config.migrations.directory).resolve()
         migrations = sorted(directory.glob('*.py'))
 
-        log.info(f'Migrations located at {directory}:')
-        for migration in migrations:
-            log.info(f'-> {migration.name}')
+        if not migrations:
+            log.info(f'No migration files found at {directory}')
+        else:
+            log.info(f'Migrations located at {directory}:')
+            for migration in migrations:
+                log.info(f'-> {migration.name}')
 
         return migrations
 
