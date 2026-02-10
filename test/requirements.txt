@@ -5,6 +5,18 @@
 #   the run.
 
 #######################
+# Migrations          #
+#######################
+
+# For Python 3.10 surrealdb<0.4.2
+# db.connect BlockingWsSurrealConnection
+# which fails tests.
+
+surrealdb==1.0.8
+
+tomli
+
+#######################
 # Debugging           #
 #######################
 
@@ -15,8 +27,11 @@ pprintpp
 # Testing             #
 #######################
 
+
 pytest
 pytest-cov
+pytest-asyncio
+
 
 #######################
 # Assertion           #
