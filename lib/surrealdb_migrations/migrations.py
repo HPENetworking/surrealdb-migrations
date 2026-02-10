@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-#
-# Copyright (C) 2024 Hewlett Packard Enterprise Development LP.
+# Copyright (C) 2024-2026 Hewlett Packard Enterprise Development LP.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License.
@@ -25,7 +23,7 @@ from logging import getLogger
 from datetime import datetime, timezone
 from importlib import util
 
-from surrealdb import Surreal
+from surrealdb import AsyncSurreal
 
 
 log = getLogger(__name__)
@@ -58,6 +56,11 @@ class MigrationsManager:
 
     async def _connect(self):
 
+        log.info(
+            'Connecting to SurrealDB with the following configuration:'
+            f'\n{self.config}'
+        )
+
         password_env = self.config.database.password_env
         password = environ.get(password_env, None)
         if password is None:
@@ -66,17 +69,24 @@ class MigrationsManager:
                 f'{password_env} is not set'
             )
 
-        log.info(f'Connecting SurrealDB at {self.config.database.url} ...')
+        self.db = AsyncSurreal(self.config.database.url)
 
-        self.db = Surreal(self.config.database.url)
-        await self.db.connect()
+        log.info(
+            f'Connecting via {self.config.database.url} '
+            f'as {self.config.database.username!r}'
+        )
         await self.db.signin({
-            'user': self.config.database.username,
-            'pass': password,
+            'username': self.config.database.username,
+            'password': password,
         })
+
+        log.info(
+            f'Using namespace {self.config.database.namespace!r} and '
+            f'database {self.config.database.database!r} ...'
+        )
         await self.db.use(
-            self.config.database.namespace,
-            self.config.database.database,
+            namespace=self.config.database.namespace,
+            database=self.config.database.database,
         )
 
         log.info('Successfully connected and signed in!')
@@ -193,9 +203,12 @@ class MigrationsManager:
         :return module: The dynamically loaded Python module.
         """
         directory = Path(self.config.migrations.directory)
+        import_path = directory / migration
+
+        log.info(f'Importing migration module from {import_path!r} ...')
 
         spec = util.spec_from_file_location(
-            migration, directory / migration,
+            migration, import_path,
         )
         module = util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -231,12 +244,10 @@ class MigrationsManager:
         ]
 
         if to_datetime:
-            migrations_to_apply = list(
-                filter(
-                    lambda migration: migration < to_datetime.isoformat(),
-                    migrations_to_apply
-                )
-            )
+            migrations_to_apply = [
+                migration for migration in migrations_to_apply
+                if migration < to_datetime.isoformat()
+            ]
 
         if not migrations_to_apply:
             log.info('No migrations need to be applied')
@@ -248,8 +259,8 @@ class MigrationsManager:
         for migration in migrations_to_apply:
             try:
                 log.info(f'-> {migration}')
-
                 module = self._import_module(migration)
+
                 # Execute migration
                 migration_obj = module.Migration(self.config)
                 await migration_obj.upgrade(self.db)
@@ -278,29 +289,21 @@ class MigrationsManager:
         """
         Rollback all relevant migrations.
         """
-        directory = Path(self.config.migrations.directory)
         log.info(f'Executing rollback down to {to_datetime.isoformat()} ...')
 
         migrations_to_rollback = await self._list_db_migrations()
         if to_datetime:
-            migrations_to_rollback = list(
-                filter(
-                    lambda migration: migration >= to_datetime.isoformat(), # noqa
-                    migrations_to_rollback
-                )
-            )
+            migrations_to_rollback = [
+                migration for migration in migrations_to_rollback
+                if migration >= to_datetime.isoformat()
+            ]
+
         log.info(f'Rolling back {len(migrations_to_rollback)} migrations ...')
 
         for migration in migrations_to_rollback:
             try:
                 log.info(f'-> {migration}')
-
-                # Import module
-                spec = util.spec_from_file_location(
-                    migration, directory / migration,
-                )
-                module = util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+                module = self._import_module(migration)
 
                 # Execute rollback
                 migration_obj = module.Migration(self.config)

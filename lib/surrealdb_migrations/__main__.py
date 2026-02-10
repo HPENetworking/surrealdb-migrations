@@ -77,6 +77,9 @@ def main():
                 async with mgr:
                     await mgr.do_rollback(to_datetime=args.datetime)
 
+        else:
+            raise RuntimeError(f'Unknown command {args.command}')
+
         loop.run_until_complete(command())
         loop.close()
 

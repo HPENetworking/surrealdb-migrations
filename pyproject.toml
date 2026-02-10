@@ -14,7 +14,7 @@ version = "0.1.0"
 authors = [{name = "Hewlett Packard Enterprise Development LP", email = "sdk_tools_frameworks@groups.ext.hpe.com"}]
 description = "SurrealDB migrations tool"
 readme = "README.rst"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -22,14 +22,14 @@ classifiers = [
     "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
 ]
 
 dependencies = [
     "setproctitle",
     "colorlog",
     "tomli",
-    "surrealdb",
+    "surrealdb>=1.0.8",
     "objns",
 ]
 
