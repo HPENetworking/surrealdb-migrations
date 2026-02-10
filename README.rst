@@ -9,12 +9,6 @@ It provides a simple, CLI-based approach to handle migrations effectively in a
 Python application environment.
 
 
-Documentation
-=============
-
-    https://github.hpe.com/hpe-networking/surrealdb_migrations
-
-
 Features
 ========
 
@@ -39,7 +33,7 @@ Install
 
 .. code-block:: sh
 
-    pip3 install surrealdb_migrations
+    uv pip install surrealdb_migrations
 
 
 Usage
@@ -178,7 +172,7 @@ License
 
 ::
 
-   Copyright (C) 2024 Hewlett Packard Enterprise Development LP.
+   Copyright (C) 2024-2026 Hewlett Packard Enterprise Development LP.
 
    Licensed under the Apache License, Version 2.0 (the "License"); you may not
    use this file except in compliance with the License.
