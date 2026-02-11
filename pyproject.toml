@@ -33,5 +33,8 @@ dependencies = [
     "objns",
 ]
 
+[project.urls]
+Homepage = "https://github.com/HPENetworking/surrealdb-migrations/"
+
 [project.scripts]
 surrealdb_migrations = "surrealdb_migrations.__main__:main"
