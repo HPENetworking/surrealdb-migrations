@@ -15,10 +15,10 @@ authors = [{name = "Hewlett Packard Enterprise Development LP", email = "sdk_too
 description = "SurrealDB migrations tool"
 readme = "README.rst"
 requires-python = ">=3.10"
+license = "Apache-2.0"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3",
