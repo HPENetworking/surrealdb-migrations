@@ -15,81 +15,13 @@
 # the License.
 
 
-#######################
-# BASE CONTAINER      #
-#######################
+FROM python:3.12-slim
 
-FROM ubuntu:24.04 as base
-ENV DEBIAN_FRONTEND noninteractive
-ENV LANG en_US.UTF-8
+WORKDIR /app
+COPY . .
 
-# Setup and install base system software
-RUN echo "locales locales/locales_to_be_generated multiselect en_US.UTF-8 UTF-8" | debconf-set-selections \
-    && echo "locales locales/default_environment_locale select en_US.UTF-8" | debconf-set-selections \
-    && apt-get update && apt-get --yes --no-install-recommends install \
-        # Base software
-        locales tzdata ca-certificates   \
-        bash-completion nano tree \
-    && rm -rf /var/lib/apt/lists/*
-
-
-# Install Python runtime stack
-RUN apt-get update \
-    && apt-get --yes --no-install-recommends install \
-        python3 python3-setuptools \
-    && rm -rf /var/lib/apt/lists/*
-
-
-#######################
-# BUILD CONTAINER     #
-#######################
-
-FROM base as builder
-
-
-# Install Python development stack
-RUN apt-get update \
-    && apt-get --yes --no-install-recommends install \
-        python3-dev python3-pip python3-wheel \
-        build-essential cmake git \
-    && rm -rf /var/lib/apt/lists/*
-
-
-# NOTE: Uncomment and edit if needed
-# Install native development dependencies
-# RUN apt-get update \
-#     && apt-get --yes --no-install-recommends install \
-#         a-native-depedency \
-#     && rm -rf /var/lib/apt/lists/*
-
-
-# Install package
-COPY . /src
-WORKDIR /src
-RUN tree . \
-    && pip3 install --no-warn-script-location --prefix=/build .
-
-
-######################
-# RUN CONTAINER      #
-######################
-
-FROM base as runner
-WORKDIR /root
-
-
-# NOTE: Uncomment and edit if needed
-# Install native runtime dependencies
-# RUN apt-get update \
-#     && apt-get --yes --no-install-recommends install \
-#         a-native-depedency \
-#     && rm -rf /var/lib/apt/lists/*
-
-
-# Copy build tree
-COPY --from=builder /build /usr/local
-ENV PYTHONPATH /usr/local/lib/python3.8/site-packages
-
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install .
 
 # Run package entrypoint
 CMD python3 -m surrealdb_migrations
