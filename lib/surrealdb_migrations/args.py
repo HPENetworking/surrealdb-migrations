@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-#
-# Copyright (C) 2024 Hewlett Packard Enterprise Development LP.
+# Copyright (C) 2024-2026 Hewlett Packard Enterprise Development LP.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License.
@@ -14,14 +12,13 @@
 # License for the specific language governing permissions and limitations under
 # the License.
 
-
 """
 Argument management module.
 """
 
 from pathlib import Path
+from datetime import datetime
 from argparse import ArgumentParser
-from datetime import datetime, timezone
 from logging import (
     ERROR, WARNING, DEBUG, INFO,
     StreamHandler, getLogger, Formatter, basicConfig,
@@ -177,7 +174,6 @@ def parse_args(argv=None):
     migrate = subcommands.add_parser('migrate')
     migrate.add_argument(
         '--datetime',
-        default=datetime.now(tz=timezone.utc).isoformat(),
         help='Migrate database up to the given datetime (ISO8601)',
     )
 

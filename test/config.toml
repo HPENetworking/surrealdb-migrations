@@ -1,5 +1,5 @@
 [database]
-url = "ws://localhost:8000/rpc"
+url = "ws://localhost:8050/rpc"
 username = "root"
 password_env = "SURREALDB_PASSWORD"
 namespace = "migrations"

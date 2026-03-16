@@ -27,5 +27,5 @@ class Migration(BaseMigration):
     async def downgrade(self, db):
         # Remove the table (this removes fields & indexes automatically)
         await db.query("""
-            DELETE user;
+            REMOVE TABLE user;
         """)

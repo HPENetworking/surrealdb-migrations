@@ -4,6 +4,12 @@
 #   installed to successfully run tests, debug them or collect metrics from
 #   the run.
 
+#######################
+# Style               #
+#######################
+
+flake8
+pep8-naming
 
 #######################
 # Debugging           #
@@ -16,11 +22,9 @@ pprintpp
 # Testing             #
 #######################
 
-
 pytest
 pytest-cov
 pytest-asyncio
-
 
 #######################
 # Assertion           #

@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-#
-# Copyright (C) 2024 Hewlett Packard Enterprise Development LP.
+# Copyright (C) 2024-2026 Hewlett Packard Enterprise Development LP.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License.
@@ -68,18 +66,14 @@ def main():
                     await mgr.do_status()
 
         elif args.command == 'migrate':
-            async def command(to_datetime=None):
+            async def command():
                 async with mgr:
-                    await mgr.do_migrate(
-                        to_datetime=to_datetime if to_datetime else args.datetime
-                    )
+                    await mgr.do_migrate(to_datetime=args.datetime)
 
         elif args.command == 'rollback':
-            async def command(to_datetime=None):
+            async def command():
                 async with mgr:
-                    await mgr.do_rollback(
-                        to_datetime=to_datetime if to_datetime else args.datetime
-                    )
+                    await mgr.do_rollback(to_datetime=args.datetime)
 
         else:
             raise RuntimeError(f'Unknown command {args.command}')

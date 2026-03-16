@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-#
-# Copyright (C) 2024 Hewlett Packard Enterprise Development LP.
+# Copyright (C) 2024-2026 Hewlett Packard Enterprise Development LP.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License.
@@ -34,7 +32,6 @@ def load_config(configfile):
     :return: The parsed configuration file as an objns Namespace.
     :rtype: Namespace
     """
-
     config = Namespace(loads(
         files(__package__).joinpath(
             'data/config.toml'
@@ -50,7 +47,6 @@ def load_config(configfile):
     config.update(loads(
         configfile.read_text(encoding='utf-8')
     ))
-
     return config
 
 

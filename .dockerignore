@@ -8,15 +8,14 @@ build
 
 # Non-code
 deployment
-doc
 test
 tox.ini
+.gitignore
+.ackrc
 
 # Tox
 .tox
 .cache
-.coverage
-.pytest_cache
 
 # Misc
 *~
