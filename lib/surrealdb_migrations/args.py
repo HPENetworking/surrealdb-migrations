@@ -20,7 +20,7 @@ from pathlib import Path
 from datetime import datetime
 from argparse import ArgumentParser
 from logging import (
-    ERROR, WARNING, DEBUG, INFO,
+    DEBUG, INFO,
     StreamHandler, getLogger, Formatter, basicConfig,
 )
 
@@ -42,12 +42,6 @@ SIMPLE_FORMAT = (
     '{levelname:8} | '
     '{message}'
 )
-LEVELS = {
-    0: ERROR,
-    1: WARNING,
-    2: INFO,
-    3: DEBUG,
-}
 
 
 class InvalidArguments(Exception):
@@ -70,7 +64,7 @@ def validate_args(args):
     """
 
     # Setup logging
-    level = LEVELS.get(args.verbosity, DEBUG)
+    level = DEBUG if args.verbose else INFO
 
     if not args.colorize:
         formatter = Formatter(
@@ -128,9 +122,7 @@ def parse_args(argv=None):
     # Standard options
     parser.add_argument(
         '-v', '--verbose',
-        action='count',
-        dest='verbosity',
-        default=0,
+        action='store_true',
         help='Increase verbosity level',
     )
     parser.add_argument(
