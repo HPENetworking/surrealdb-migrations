@@ -24,7 +24,7 @@ from typing import Optional
 from logging import getLogger
 from datetime import datetime, timezone
 
-from surrealdb import AsyncSurreal, NotFoundError
+from surrealdb import AsyncSurreal, AsyncSurrealSession, NotFoundError
 
 
 log = getLogger(__name__)
@@ -56,7 +56,8 @@ class MigrationsManager:
 
     def __init__(self, config):
         self.config = config
-        self.db: Optional[AsyncSurreal] = None
+        self._connection: Optional[AsyncSurreal] = None
+        self.db: Optional[AsyncSurrealSession] = None
 
     async def _connect(self):
         """
@@ -79,6 +80,7 @@ class MigrationsManager:
             f'\n{self.config}'
         )
 
+        # Grab password from environment variable
         password_env = self.config.database.password_env
         password = environ.get(password_env, None)
         if password is None:
@@ -87,7 +89,12 @@ class MigrationsManager:
                 f'{password_env} is not set'
             )
 
-        self.db = AsyncSurreal(self.config.database.url)
+        # Connect to SurrealDB
+        self._connection = AsyncSurreal(self.config.database.url)
+        await self._connection.connect()
+
+        # Create a new session, sign in and select namespace and database
+        self.db = await self._connection.new_session()
 
         log.info(
             f'Connecting via {self.config.database.url} '
@@ -116,11 +123,18 @@ class MigrationsManager:
         This private method is intended is not meant to be called directly by
         external code, use the context manager interface instead.
         """
-        if self.db is not None:
+        if self._connection is not None:
+
+            if self.db is not None:
+                log.debug('Closing database session ...')
+                await self.db.close_session()
+                log.debug('Database session successfully closed!')
+                self.db = None
+
             log.debug('Closing database connection ...')
-            await self.db.close()
+            await self._connection.close()
             log.debug('Database connection successfully closed!')
-            self.db = None
+            self._connection = None
 
     async def __aenter__(self):
         """
@@ -396,15 +410,26 @@ class MigrationsManager:
 
                 # Execute migration
                 migration_obj = module.Migration(self.config)
-                await migration_obj.upgrade(self.db)
+                txn = await self.db.begin_transaction()
+                try:
+                    await migration_obj.upgrade(txn)
+                    await txn.commit()
+                except Exception as e:
+                    log.error(
+                        'Upgrade function failed, canceling transaction '
+                        f'for migration {migration} ...'
+                    )
+                    await txn.cancel()
+                    raise e
 
-                # Store migration in metastore
+                # Insert migration record in metastore
                 await self._insert_migration(migration)
 
             except Exception as e:
-                log.error(f'Failed to apply: {migration}')
-                if hasattr(e, 'message'):
-                    log.error(e.message)
+                log.error(
+                    f'Failed to apply migration {migration}',
+                    exc_info=True,
+                )
 
                 raise e
 
@@ -482,14 +507,26 @@ class MigrationsManager:
 
                 # Execute rollback
                 migration_obj = module.Migration(self.config)
-                await migration_obj.downgrade(self.db)
+                txn = await self.db.begin_transaction()
+                try:
+                    await migration_obj.downgrade(txn)
+                    await txn.commit()
+                except Exception as e:
+                    log.error(
+                        'Downgrade function failed, canceling transaction '
+                        f'for migration {migration} ...'
+                    )
+                    await txn.cancel()
+                    raise e
 
+                # Delete migration record from metastore
                 await self._delete_migration(migration)
 
             except Exception as e:
-                log.error(f'Failed to roll back: {migration}')
-                if hasattr(e, 'message'):
-                    log.error(e.message)
+                log.error(
+                    f'Failed to roll back migration {migration}',
+                    exc_info=True,
+                )
 
                 raise e
 
