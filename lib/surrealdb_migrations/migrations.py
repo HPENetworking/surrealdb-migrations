@@ -24,6 +24,7 @@ from typing import Optional
 from logging import getLogger
 from datetime import datetime, timezone
 
+from tabulate import tabulate
 from surrealdb import AsyncSurreal, AsyncSurrealSession, NotFoundError
 
 
@@ -217,9 +218,15 @@ class MigrationsManager:
         if not migrations:
             log.info(f'No migration files found at {directory}')
         else:
-            log.info(f'Migrations located at {directory}:')
-            for migration in migrations:
-                log.info(f'-> {migration.name}')
+            table = tabulate(
+                [
+                    [migration.name]
+                    for migration in migrations
+                ],
+                headers=['Migration Files'],
+                tablefmt='rounded_outline',
+            )
+            log.info(f'Migrations located at {directory}:\n{table}')
 
         return migrations
 
@@ -236,12 +243,24 @@ class MigrationsManager:
         """
         List all applied migrations in the database.
 
-        :return list: A list of applied migration names sorted by applied date
-         in descending order (newer first).
-        :rtype: list[str]
+        :return list: A list of applied migrations (name and applied_date)
+         sorted by applied date in descending order (newer first).
+
+         ::
+
+            [
+                {
+                    'name': '2024-01-01T00_00_00Z_initial_migration.py',
+                    'applied_date': '2024-01-01T00:00:00Z',
+                },
+                ...
+            ]
+
+        :rtype: list[dict]
         """
         table = self.config.migrations.metastore
 
+        log.info('Fetching applied migrations ...')
         try:
             result = await self.db.query(
                 'SELECT name, applied_date '
@@ -254,29 +273,54 @@ class MigrationsManager:
                 raise e
 
             # Table doesn't exist yet, totally fine
-            return []
+            result = []
 
-        return [item['name'] for item in result]
+        if not result:
+            log.info('No migrations are currently applied in the database')
+            return result
+
+        migrations = [
+            {
+                key: item[key]
+                for key in ('name', 'applied_date')
+            }
+            for item in result
+        ]
+
+        table = tabulate(
+            [
+                [migration['name'], migration['applied_date']]
+                for migration in migrations
+            ],
+            headers=['Name', 'Applied Date'],
+            tablefmt='rounded_outline',
+        )
+        log.info(
+            f'Migrations currently applied in the database:\n{table}'
+        )
+
+        return migrations
 
     async def do_status(self):
         """
         List all applied migrations in the database.
 
-        :return list: A list of applied migration names sorted by applied date
-         in descending order (newer first).
-        :rtype: list[str]
+        :return list: A list of applied migrations (name and applied_date)
+         sorted by applied date in descending order (newer first).
+
+         ::
+
+            [
+                {
+                    'name': '2024-01-01T00_00_00Z_initial_migration.py',
+                    'applied_date': '2024-01-01T00:00:00Z',
+                },
+                ...
+            ]
+
+        :rtype: list[dict]
         """
-        applied = await self._list_db_migrations()
-
-        if not applied:
-            log.info('No migrations are currently applied in the database')
-            return applied
-
-        log.info('Current applied migrations in the database:')
-        for migration in applied:
-            log.info(f'-> {migration}')
-
-        return applied
+        return await self._list_db_migrations()
 
     async def _create_metastore_table(self):
         """
@@ -364,18 +408,7 @@ class MigrationsManager:
         log.info(f'Executing migration up to {to_datetime.isoformat()} ...')
 
         files = self._list_fs_migrations()
-
-        log.info('Fetching applied migrations ...')
         migrations_applied = await self._list_db_migrations()
-
-        if not migrations_applied:
-            log.info('No migrations are currently applied')
-        else:
-            log.info(
-                f'Migrations currently applied: {len(migrations_applied)}'
-            )
-            for applied in migrations_applied:
-                log.info(f'-> {applied}')
 
         # Filter migration files to apply only those that are newer (greater)
         # than the latest applied migration
@@ -383,7 +416,7 @@ class MigrationsManager:
             migration_file.name for migration_file in files
             if (
                 not migrations_applied
-                or migration_file.name > migrations_applied[0]
+                or migration_file.name > migrations_applied[0]['name']
             )
         ]
 
@@ -479,17 +512,14 @@ class MigrationsManager:
 
         log.info(f'Executing rollback down to {to_datetime.isoformat()} ...')
 
-        migrations_to_rollback = await self._list_db_migrations()
-        log.info(
-            f'There are {len(migrations_to_rollback)} migrations applied...'
-        )
+        migrations_applied = await self._list_db_migrations()
 
         # Filter applied migrations to rollback only those that are newer
         # (greater)
         migrations_to_rollback = [
-            migration
-            for migration in migrations_to_rollback
-            if migration > to_datetime.isoformat()
+            migration['name']
+            for migration in migrations_applied
+            if migration['name'] > to_datetime.isoformat()
         ]
 
         if not migrations_to_rollback:
