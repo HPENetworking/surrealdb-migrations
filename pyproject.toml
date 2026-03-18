@@ -35,6 +35,7 @@ dependencies = [
     "tomli",
     "surrealdb>=2.0.0a1",
     "objns",
+    "tabulate",
 ]
 
 [project.urls]
