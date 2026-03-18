@@ -1,4 +1,4 @@
-# Copyright (C) 2024 Hewlett Packard Enterprise Development LP.
+# Copyright (C) 2024-2026 Hewlett Packard Enterprise Development LP.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may not
 # use this file except in compliance with the License.
@@ -19,4 +19,4 @@ surrealdb_migrations module entry point.
 
 __author__ = 'Hewlett Packard Enterprise Development LP'
 __email__ = 'sdk_tools_frameworks@groups.ext.hpe.com'
-__version__ = '0.1.0'
+__version__ = '0.2.0'

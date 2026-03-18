@@ -33,7 +33,7 @@ Install
 
 .. code-block:: sh
 
-    uv pip install surrealdb_migrations
+   uv pip install surrealdb_migrations
 
 
 Usage
@@ -132,18 +132,14 @@ The tool provides several commands to manage migrations:
    all migrations up to the specified date.
    The format is ``YYYY-MM-DDTHH:MM:SS.ssssss+00:00``
    (e.g., ``2024-10-01T22:54:50.040825+00:00``).
+   You may also use a date without time, in which case the time will default to
+   ``00:00:00`` (e.g., ``2024-10-01`` will be treated as
+   ``2024-10-01T00:00:00+00:00``).
 
 5. **Rolling Back Migrations**
 
-   To rollback the last applied migration, run:
-
-   .. code-block:: bash
-
-       surrealdb_migrations rollback
-
-   This command will revert the most recently applied migration.
-
-   If you want to rollback to a specific date, use the ``--datetime`` option:
+   To rollback migrations to a previous state, you need to specify a date, use
+   the ``--datetime`` option:
 
    .. code-block:: bash
 
@@ -153,12 +149,28 @@ The tool provides several commands to manage migrations:
    all migrations applied after the specified date. The format is
    ``YYYY-MM-DDTHH:MM:SS.ssssss+00:00``
    (e.g., ``2024-10-01T22:54:50.040825+00:00``).
-
+   You may also use a date without time, in which case the time will default to
+   ``00:00:00`` (e.g., ``2024-10-01`` will be treated as
+   ``2024-10-01T00:00:00+00:00``).
 
 Changelog
 =========
 
-0.1.0 (2020-02-01)
+0.2.0 (2026-03-17)
+------------------
+
+Changes
+~~~~~~~
+
+- Make upgrades and downgrade a transaction.
+- Always print something to stdout when running, makes INFO the default, DEBUG
+  if verbose.
+- Pretty print tables with tabulate.
+
+Changelog
+=========
+
+0.1.0 (2026-03-17)
 ------------------
 
 New
